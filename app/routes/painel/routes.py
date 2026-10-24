@@ -21,6 +21,7 @@ from io import BytesIO
 from xhtml2pdf import pisa
 import mimetypes
 import traceback
+import subprocess
 
 @painel.route('/painel')
 @login_required
@@ -1448,3 +1449,12 @@ def relatorio_inadimplentes():
             cursor.close()
         if conexao:
             conexao.close()
+
+
+def deploy_webhook():
+    repo_dir = "/www/wwwroot/kingsales-app"
+    
+    # Executa o comando de pull na VPS para atualizar os arquivos
+    subprocess.run(["git", "-C", repo_dir, "pull", "origin", "main"])
+    
+    return "Atualizado com sucesso!", 200
