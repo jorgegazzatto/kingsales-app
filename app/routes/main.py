@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from flask import jsonify
 from app.apis.whatsapp.texto import enviar_whatsapp_texto
 from app.apis.email.texto import enviar_email_texto
+import subprocess
 
 main = Blueprint('main', __name__)
 
@@ -235,3 +236,13 @@ def salvar_nova_senha():
 
     flash('Senha alterada com sucesso!', 'success')
     return redirect(url_for('main.index'))
+
+    
+
+def deploy_webhook():
+    repo_dir = "/www/wwwroot/kingsales-app"
+    
+    # Executa o comando de pull na VPS para atualizar os arquivos
+    subprocess.run(["git", "-C", repo_dir, "pull", "origin", "main"])
+    
+    return "Atualizado com sucesso!", 200
