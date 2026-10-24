@@ -1,0 +1,17 @@
+#DADOS DO SISTEMA
+MODO_TESTE = 'Não'
+NOME_SISTEMA = "Sistema Python"
+EMAIL_SISTEMA = "contato@hugocursos.com.br"
+SENHA_PADRAO = "123"
+COR_PRIMARIA = '#0d6efd'
+COR_SECUNDARIA = '#1d4688'
+
+#DADOS DO BANCO
+DB_HOST = "localhost"
+DB_USER = "root"
+DB_PASSWORD = '1234'
+DB_NAME = 'python'
+
+DDI_TELEFONE = '55'
+
+CHAVE_CRIPTOGRAFIA = 'jR_TEeAlIZtm4HZJ6gavFrX02nxyX5xp7Lux_Tw_ZtU='

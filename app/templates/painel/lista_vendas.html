@@ -1,0 +1,580 @@
+{% extends "painel/base.html" %}
+
+{% block title %}Lista de Vendas - {{ config_sistema.nome_sistema }}{% endblock %}
+{% block page_title %}Lista de Vendas{% endblock %}
+
+{% block content %}
+<div class="content-card">
+
+    <!-- TOPO -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h4 class="mb-0">Lista de Vendas</h4>
+            <small class="text-muted">Controle, consulta e cancelamento de vendas realizadas no PDV</small>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary" type="button" onclick="limparFiltrosVendas()">
+                <i class="bi bi-x-circle me-1"></i> Limpar
+            </button>
+
+            <button class="btn btn-primary" id="btnRelatorioVendas" type="button">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Relatório
+            </button>
+
+            <form id="formRelatorioVendas" method="POST" action="/lista_vendas/relatorio" target="_blank" style="display:none;">
+                <input type="hidden" name="data_inicial" id="rel_data_inicial">
+                <input type="hidden" name="data_final" id="rel_data_final">
+                <input type="hidden" name="cliente" id="rel_cliente">
+                <input type="hidden" name="forma_pagamento" id="rel_forma_pagamento">
+                <input type="hidden" name="status" id="rel_status">
+                <input type="hidden" name="busca" id="rel_busca">
+            </form>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-2">
+            <label>Data inicial</label>
+            <input type="date" id="data_inicial" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data final</label>
+            <input type="date" id="data_final" class="form-control">
+        </div>
+
+        <div class="col-md-4 d-flex align-items-end gap-2 flex-wrap">
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoHojeVendas()">Hoje</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoOntemVendas()">Ontem</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoMesVendas()">Este mês</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalho7diasVendas()">7 dias</button>
+        </div>
+
+        <div class="col-md-2">
+            <label>Status</label>
+            <select id="status" class="form-select">
+                <option value="">Todos</option>
+                <option value="Pago">Pago</option>
+                <option value="Pendente">Pendente</option>
+                <option value="Cancelado">Cancelado</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Cliente</label>
+            <select id="cliente" class="form-select">
+                <option value="">Todos</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Forma de pagamento</label>
+            <select id="forma_pagamento" class="form-select">
+                <option value="">Todas</option>
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Busca</label>
+            <input type="text" id="busca" class="form-control" placeholder="Nº venda, observação ou cliente">
+        </div>
+
+    </div>
+
+    <!-- TABELA -->
+    <div class="table-responsive">
+        <table class="table align-middle table-hover" id="tabelaVendas">
+            <thead>
+                <tr>
+                    <th>Nº Venda</th>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Forma Pgto</th>
+                    <th>Valor</th>
+                    <th>Desconto</th>
+                    <th>Acréscimo</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th style="width: 210px;" class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbodyVendas"></tbody>
+        </table>
+    </div>
+
+</div>
+
+
+<!-- OFFCANVAS DETALHES -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasVenda" aria-labelledby="offcanvasVendaLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="offcanvasVendaLabel">
+            <i class="bi bi-receipt-cutoff me-2"></i>Detalhes da Venda
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+
+    <div class="offcanvas-body">
+
+        <div class="mb-3">
+            <h6>Informações Gerais</h6>
+            <div class="mb-2"><strong>Nº Venda:</strong> <span id="viewVendaId"></span></div>
+            <div class="mb-2"><strong>Data:</strong> <span id="viewDataVenda"></span></div>
+            <div class="mb-2"><strong>Hora:</strong> <span id="viewHoraVenda"></span></div>
+            <div class="mb-2"><strong>Status:</strong> <span id="viewStatusVenda"></span></div>
+            <div class="mb-2"><strong>Cliente:</strong> <span id="viewClienteVenda"></span></div>
+            <div class="mb-2"><strong>Forma de pagamento:</strong> <span id="viewFormaPagamentoVenda"></span></div>
+            <div class="mb-2"><strong>Usuário lançamento:</strong> <span id="viewUsuarioVenda"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Valores</h6>
+            <div class="mb-2"><strong>Valor bruto:</strong> <span id="viewValorVenda"></span></div>
+            <div class="mb-2"><strong>Desconto:</strong> <span id="viewDescontoVenda"></span></div>
+            <div class="mb-2"><strong>Acréscimo:</strong> <span id="viewAcrescimoVenda"></span></div>
+            <div class="mb-2"><strong>Total:</strong> <span id="viewSubtotalVenda"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Itens da Venda</h6>
+            <div id="viewItensVenda" class="border rounded-3 p-2 bg-light small">
+                Nenhum item carregado.
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Observações</h6>
+            <div class="mb-2"><span id="viewObservacoesVenda"></span></div>
+        </div>
+
+    </div>
+</div>
+
+
+
+<!-- MODAL CANCELAR VENDA -->
+<div class="modal fade" id="modalCancelarVenda" tabindex="-1" aria-labelledby="modalCancelarVendaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalCancelarVendaLabel">
+                    <i class="bi bi-x-octagon me-2"></i>Cancelar Venda
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <form id="formCancelarVenda" method="POST">
+                <input type="hidden" name="id" id="cancelar_venda_id">
+
+                <div class="modal-body">
+
+                    <div class="alert alert-warning mb-3">
+                        Ao cancelar esta venda, os itens poderão ser estornados ao estoque e o recebimento vinculado poderá ser ajustado.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Venda</label>
+                        <input type="text" class="form-control bg-light" id="cancelar_venda_descricao" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Motivo do cancelamento</label>
+                        <textarea class="form-control" id="cancelar_venda_motivo" name="motivo" rows="4" placeholder="Descreva o motivo do cancelamento"></textarea>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-danger" id="btnConfirmarCancelarVenda">
+                        <i class="bi bi-x-circle me-1"></i> Confirmar Cancelamento
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+    aplicarSelect2('cliente');
+    aplicarDataHoje('data_final');
+
+    const hoje = getDataHoje();
+    const inicioMes = getDataInicioMes();
+
+    document.getElementById('data_inicial').value = inicioMes;
+    document.getElementById('data_final').value = hoje;
+
+    $('#cliente').off('change').on('change', function () {
+        carregarVendas();
+    });
+});
+
+
+    function limparFiltrosVendas() {
+        document.getElementById('data_inicial').value = getDataInicioMes();
+        document.getElementById('data_final').value = getDataHoje();
+        document.getElementById('status').value = '';
+        document.getElementById('cliente').value = '';
+        document.getElementById('forma_pagamento').value = '';
+        document.getElementById('busca').value = '';
+
+        if (window.jQuery) {
+            $('#cliente').trigger('change');
+            $('#forma_pagamento').trigger('change');
+        }
+
+        carregarVendas();
+    }
+
+
+    
+    document.getElementById('btnRelatorioVendas').addEventListener('click', function () {
+        document.getElementById('rel_data_inicial').value = document.getElementById('data_inicial').value;
+        document.getElementById('rel_data_final').value = document.getElementById('data_final').value;
+        document.getElementById('rel_cliente').value = document.getElementById('cliente').value;
+        document.getElementById('rel_forma_pagamento').value = document.getElementById('forma_pagamento').value;
+        document.getElementById('rel_status').value = document.getElementById('status').value;
+        document.getElementById('rel_busca').value = document.getElementById('busca').value;
+
+        document.getElementById('formRelatorioVendas').submit();
+    });
+</script>
+
+<script>
+function atalhoHojeVendas() {
+    periodoHoje('data_inicial', 'data_final');
+    carregarVendas();
+}
+
+function atalhoOntemVendas() {
+    periodoOntem('data_inicial', 'data_final');
+    carregarVendas();
+}
+
+function atalhoMesVendas() {
+    periodoMesAtual('data_inicial', 'data_final');
+    carregarVendas();
+}
+
+function atalho7diasVendas() {
+    const fim = getDataHoje();
+    const data = new Date();
+    data.setDate(data.getDate() - 6);
+    const inicio = formatarDataISO(data);
+
+    document.getElementById('data_inicial').value = inicio;
+    document.getElementById('data_final').value = fim;
+
+    carregarVendas();
+}
+</script>
+
+
+<script>
+
+    document.addEventListener('DOMContentLoaded', () => {
+    carregarFormasPagamento();
+    carregarVendas();
+
+    
+
+    // filtros automáticos
+   document.querySelectorAll('#data_inicial, #data_final, #status')
+    .forEach(el => el.addEventListener('change', carregarVendas));
+
+    $('#cliente').on('change', function () {
+    carregarVendas();
+});
+
+$('#forma_pagamento').on('change', function () {
+    carregarVendas();
+});
+
+    document.getElementById('busca').addEventListener('keyup', () => {
+        setTimeout(carregarVendas, 400);
+    });
+});
+
+
+// ===============================
+// 🔄 CARREGAR VENDAS
+// ===============================
+async function carregarVendas() {
+
+    const params = new URLSearchParams({
+        data_inicial: document.getElementById('data_inicial').value,
+        data_final: document.getElementById('data_final').value,
+        cliente: document.getElementById('cliente').value,
+        forma_pagamento: document.getElementById('forma_pagamento').value,
+        status: document.getElementById('status').value,
+        busca: document.getElementById('busca').value
+    });
+
+    try {
+        mostrarLoading("Carregando vendas...");
+
+        const response = await fetch(`/lista_vendas/listar?${params.toString()}`);
+        const dados = await response.json();
+
+        fecharLoading();
+
+        if (!response.ok) {
+            mensagemErro("Erro ao carregar vendas.");
+            return;
+        }
+
+        renderizarTabelaVendas(dados);
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro("Erro inesperado ao carregar vendas.");
+        console.error(error);
+    }
+}
+
+
+// ===============================
+// 🧾 TABELA
+// ===============================
+function renderizarTabelaVendas(vendas) {
+
+    const tbody = document.getElementById('tbodyVendas');
+    tbody.innerHTML = '';
+
+    if (!vendas.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center text-muted">
+                    Nenhuma venda encontrada
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    vendas.forEach(v => {
+
+        const badgeStatus = getBadgeStatus(v.status);
+
+        tbody.innerHTML += `
+            <tr>
+                <td>#${v.id}</td>
+                <td>${v.data_lancamento_formatada}</td>
+                <td>${v.cliente_nome || '-'}</td>
+                <td>${v.forma_pagamento_nome || '-'}</td>
+                <td>R$ ${formatarValorBR(v.valor)}</td>
+                <td>R$ ${formatarValorBR(v.desconto)}</td>
+                <td>R$ ${formatarValorBR(v.acrescimo)}</td>
+                <td><strong>R$ ${formatarValorBR(v.subtotal)}</strong></td>
+                <td>${badgeStatus}</td>
+                <td class="text-center">
+
+                    <button title="Ver Detalhes" class="btn btn-sm btn-outline-primary"
+                        onclick="abrirDetalhesVenda(${v.id})">
+                        <i class="bi bi-eye"></i>
+                    </button>
+
+                    <button title="Abrir Comprovante" class="btn btn-sm btn-outline-secondary"
+                        onclick="abrirComprovante(${v.id})">
+                        <i class="bi bi-receipt"></i>
+                    </button>
+
+                    ${v.status !== 'Cancelado' ? `
+                    <button title="Cancelar Venda" class="btn btn-sm btn-outline-danger"
+                        onclick="abrirModalCancelar(${v.id})">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                    ` : ''}
+
+                </td>
+            </tr>
+        `;
+    });
+}
+
+
+// ===============================
+// 🎨 STATUS
+// ===============================
+function getBadgeStatus(status) {
+
+    if (status === 'Pago') {
+        return `<span class="badge bg-success">Pago</span>`;
+    }
+
+    if (status === 'Pendente') {
+        return `<span class="badge bg-warning text-dark">Pendente</span>`;
+    }
+
+    if (status === 'Cancelado') {
+        return `<span class="badge bg-danger">Cancelado</span>`;
+    }
+
+    return `<span class="badge bg-secondary">${status}</span>`;
+}
+
+
+// ===============================
+// 💳 FORMAS PAGAMENTO
+// ===============================
+async function carregarFormasPagamento() {
+    try {
+        const response = await fetch('/lista_vendas/listar-formas-pagamento');
+        const dados = await response.json();
+
+        const select = document.getElementById('forma_pagamento');
+        select.innerHTML = `<option value="">Todas</option>`;
+
+        dados.forEach(fp => {
+            select.innerHTML += `<option value="${fp.id}">${fp.nome}</option>`;
+        });
+
+        aplicarSelect2('forma_pagamento');
+
+        $('#forma_pagamento').off('change').on('change', function () {
+            carregarVendas();
+        });
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+
+// ===============================
+// 👁️ DETALHAR VENDA
+// ===============================
+async function abrirDetalhesVenda(id) {
+
+    try {
+        mostrarLoading("Carregando detalhes...");
+
+        const response = await fetch(`/lista_vendas/detalhar/${id}`);
+        const data = await response.json();
+
+        fecharLoading();
+
+        if (data.status !== 'sucesso') {
+            mensagemErro("Erro ao carregar detalhes.");
+            return;
+        }
+
+        const v = data.venda;
+
+        document.getElementById('viewVendaId').innerText = v.id;
+        document.getElementById('viewDataVenda').innerText = v.data_lancamento_formatada;
+        document.getElementById('viewHoraVenda').innerText = v.hora_lancamento || '-';
+        document.getElementById('viewStatusVenda').innerText = v.status;
+        document.getElementById('viewClienteVenda').innerText = v.cliente_nome || '-';
+        document.getElementById('viewFormaPagamentoVenda').innerText = v.forma_pagamento_nome || '-';
+        document.getElementById('viewUsuarioVenda').innerText = v.usuario_lancamento_nome || '-';
+
+        document.getElementById('viewValorVenda').innerText = formatarValorBR(v.valor);
+        document.getElementById('viewDescontoVenda').innerText = formatarValorBR(v.desconto);
+        document.getElementById('viewAcrescimoVenda').innerText = formatarValorBR(v.acrescimo);
+        document.getElementById('viewSubtotalVenda').innerText = formatarValorBR(v.subtotal);
+
+        document.getElementById('viewObservacoesVenda').innerText = v.observacoes || '-';
+
+        let htmlItens = '';
+
+        data.itens.forEach(i => {
+            htmlItens += `
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span>${i.produto_nome}</span>
+                    <span>${i.quantidade} x R$ ${formatarValorBR(i.valor_unitario)}</span>
+                </div>
+            `;
+        });
+
+        document.getElementById('viewItensVenda').innerHTML = htmlItens;
+
+        const offcanvas = new bootstrap.Offcanvas('#offcanvasVenda');
+        offcanvas.show();
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro("Erro inesperado.");
+    }
+}
+
+
+// ===============================
+// 🧾 COMPROVANTE
+// ===============================
+function abrirComprovante(id) {
+    window.open(`/pdv/comprovante/${id}`, '_blank');
+}
+
+
+// ===============================
+// ❌ CANCELAR VENDA
+// ===============================
+function abrirModalCancelar(id) {
+
+    document.getElementById('cancelar_venda_id').value = id;
+    document.getElementById('cancelar_venda_descricao').value = `Venda #${id}`;
+
+    const modal = new bootstrap.Modal('#modalCancelarVenda');
+    modal.show();
+}
+
+
+document.getElementById('formCancelarVenda').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const id = document.getElementById('cancelar_venda_id').value;
+    const motivo = document.getElementById('cancelar_venda_motivo').value;
+
+    const confirmacao = await confirmarAcao({
+        titulo: "Cancelar venda?",
+        texto: "Essa ação irá estornar o estoque e cancelar o recebimento."
+    });
+
+    if (!confirmacao.isConfirmed) return;
+
+    try {
+        mostrarLoading("Cancelando venda...");
+
+        const response = await fetch('/lista_vendas/cancelar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, motivo })
+        });
+
+        const data = await response.json();
+
+        fecharLoading();
+
+        if (data.status !== 'sucesso') {
+            mensagemErro(data.mensagem);
+            return;
+        }
+
+        mensagemSucesso(data.mensagem);
+
+        bootstrap.Modal.getInstance(document.getElementById('modalCancelarVenda')).hide();
+
+        carregarVendas();
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro("Erro ao cancelar venda.");
+    }
+});
+
+</script>
+{% endblock %}

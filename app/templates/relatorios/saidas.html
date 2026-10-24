@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Saídas</title>
+
+    <style type="text/css">
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+
+            /* xhtml2pdf NÃO é CSS padrão (VSCode acusa erro, mas funciona no PDF) */
+            /* DESCOMENTAR ABAIXO PARA FUNCIONAR A PAGINAÇÃO NO RELATÓRIO */
+            /*
+            @frame footer_page_number {
+                -pdf-frame-content: footer_page_number;
+                bottom: 1mm;
+                right: 10mm;
+                width: 60mm;
+                height: 8mm;
+            }
+            */
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: #1f2937;
+            margin: 0;
+            padding: 0;            
+            }
+
+        .pagina {
+            width: 100%;
+        }
+
+        .topo-box {
+            width: 100%;
+            border: 1px solid #d8dee6;
+            border-radius: 6px;
+            padding: 10px 10px 8px 10px;
+            margin-top: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .topo-tabela {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .topo-tabela td {
+            vertical-align: top;           
+            padding:0px;
+        }
+
+        .col-logo {
+            width: 18%;
+            text-align: center;
+        }
+
+        .col-empresa {
+            width: 53%;
+            padding: 12px 14px 8px 16px;
+            border-left: 1px solid #d8dee6;
+            vertical-align: top;
+        }
+
+        .col-titulo {
+            width: 29%;
+            text-align: right;
+            padding: 12px 14px 8px 16px;
+            border-left: 1px solid #d8dee6;
+            vertical-align: top;
+        }
+
+        .logo {
+            max-width: 130px;
+            max-height: 130px;
+        }
+
+        .empresa-nome {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #111827;
+            margin: 0 0 2px 0;
+            line-height: 1.1;
+        }
+
+        .relatorio-titulo {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #111827;
+            margin: 0 0 2px 0;
+            line-height: 1.1;
+        }
+
+        .empresa-info {
+            font-size: 11px;
+            color: #374151;
+            line-height: 1.25;
+            margin: 0;
+        }
+
+        .relatorio-data {
+            font-size: 10px;
+            line-height: 1.2;
+            margin: 0;
+        }
+
+        .filtros {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-top: 8px;
+        }
+
+        .filtros td {
+            border: 1px solid #d8dee6;
+            background: #f8fafc;
+            padding: 7px 8px;
+            font-size: 11px;
+        }
+
+        .filtros b {
+            color: #111827;
+        }
+
+        .cards-resumo {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-top: 8px;
+        }
+
+        .cards-resumo td {
+            border: 1px solid #d8dee6;
+            background: #f8fafc;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
+
+        .card-titulo {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 3px;
+        }
+
+        .card-valor {
+            font-size: 15px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .tabela {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-top: 8px;
+        }
+
+        .tabela thead th {
+            background: #e8edf4;
+            color: #111827;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: left;
+            padding: 6px 7px;
+            border: 1px solid #d8dee6;
+            line-height: 1.15;
+        }
+
+        .tabela tbody td {
+            padding: 6px 7px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+            line-height: 1.2;
+            word-wrap: break-word;
+        }
+
+        .tabela tbody tr:nth-child(even) {
+            background: #fbfcfe;
+        }
+
+        .nowrap {
+            white-space: nowrap;
+        }
+
+        .muted {
+            color: #6b7280;
+        }
+
+        .small {
+            font-size: 9px;
+        }
+
+        .badge {
+            background-clip: padding-box;
+            padding-top: 4px;
+            padding-bottom: 4px;
+            padding-left: 10px;
+            padding-right: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+            vertical-align: center;
+            text-align: center;
+            line-height: 10px;
+            white-space: nowrap;
+        }
+        .b-entrada { background: #c61919; }
+        .b-padrao  { background: #6b7280; }
+
+        .sem-dados {
+            text-align: center;
+            color: #6b7280;
+            padding: 14px;
+        }
+
+        .rodape-final {
+            margin-top: 14px;
+            border-top: 1px solid #d8dee6;
+            padding-top: 6px;
+            font-size: 10px;
+            color: #6b7280;
+            text-align: right;
+        }
+
+        /* ===== ASSINATURA ===== */
+
+        .assinatura-img {
+            max-width: 180px;
+            max-height: 70px;
+        }
+
+        .assinatura-nome {
+            font-size: 11px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        .bloco-topo-texto {
+            padding-top: 6px;
+        }
+
+        .bloco-topo-texto-direita {
+            padding-top: 6px;
+        }
+
+        .box-logo {
+            padding: 10px 12px 8px 12px;
+            text-align: center;
+        }
+
+        .box-empresa {
+            padding: 0 14px 6px 14px;
+        }
+
+        .box-titulo {
+            padding: 0 16px 6px 16px;
+            text-align: right;
+        }
+
+        .td-tipo {
+            vertical-align: middle;
+        }
+    </style>
+
+    {% if modo_relatorio == 'html' %} 
+            <style> 
+                body {
+            padding: 20px 60px;
+            background: #f1f5f9;
+                }
+            </style>  
+            {% endif %}
+
+</head>
+<body>
+    <div class="pagina">
+
+        <div class="topo-box">
+            <table class="topo-tabela">
+                <tr>
+                    <td class="col-logo">
+                        <div class="box-logo" style="padding-top:20px">
+                            {% if logo_src %}                            
+                                <img src="{{ logo_src }}" class="logo" alt="Logo">
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <td class="col-empresa">
+                        <div class="box-empresa">
+                            <div style="height:8px; line-height:8px; font-size:8px;">&nbsp;</div>
+
+                            <div class="empresa-nome">{{ (config_sistema.nome_sistema or 'Sistema')|upper }}</div>
+
+                            <div class="empresa-info">
+                                {{ config_sistema.telefone_sistema or '' }}
+                                {% if config_sistema.telefone_sistema and config_sistema.email_sistema %} | {% endif %}
+                                {{ config_sistema.email_sistema or '' }}
+                            </div>
+
+                            <div class="empresa-info">
+                                {{ config_sistema.endereco_sistema or '' }}
+                            </div>
+                        </div>
+                    </td>
+
+                    <td class="col-titulo">
+                        <div class="box-titulo">
+                            <div style="height:8px; line-height:8px; font-size:8px;">&nbsp;</div>
+
+                            <div class="relatorio-titulo">RELATÓRIO DE SAÍDAS</div>
+                            <div class="relatorio-data">Gerado em {{ now().strftime('%d/%m/%Y %H:%M') }}</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="filtros">
+                <tr>
+                    <td><b>Período:</b> {{ data_inicial_label }} até {{ data_final_label }}</td>
+                    <td><b>Produto:</b> {{ produto_nome_filtro or 'Todos' }}</td>
+                    <td><b>Usuário:</b> {{ usuario_nome_filtro or 'Todos' }}</td>
+                </tr>
+            </table>
+
+            <table class="cards-resumo">
+                <tr>
+                    <td>
+                        <div class="card-titulo">Qtd. Registros</div>
+                        <div class="card-valor">{{ dados|length }}</div>
+                    </td>
+                    <td>
+                        <div class="card-titulo">Quantidade Total</div>
+                        <div class="card-valor">{{ formatar_numero(total_quantidade or 0) }}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <table class="tabela">
+            <thead>
+                <tr>
+                    <th style="width: 110px;">Data</th>
+                    <th style="width: 70px;">Tipo</th>
+                    <th style="width: 180px;">Produto</th>
+                    <th style="width: 90px;">Quantidade</th>
+                    <th style="width: 110px;">Estoque Anterior</th>
+                    <th style="width: 95px;">Estoque Atual</th>
+                    <th>Observação</th>
+                    <th style="width: 160px;">Usuário</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if dados %}
+                    {% for item in dados %}
+                        <tr>
+                            <td class="nowrap">
+                                {{ item.data_movimentacao.strftime('%d/%m/%Y') if item.data_movimentacao else '-' }}
+                            </td>
+
+                            <td class="td-tipo">
+                                <div class="badge b-entrada">
+                                    {{ item.tipo or 'Saida' }}
+                                </div>
+                            </td>
+
+                            <td>{{ item.produto_nome or '-' }}</td>
+
+                            <td class="nowrap">
+                                {{ formatar_numero(item.quantidade or 0) }}
+                            </td>
+
+                            <td class="nowrap">
+                                {{ formatar_numero(item.estoque_anterior or 0) }}
+                            </td>
+
+                            <td class="nowrap">
+                                {{ formatar_numero(item.estoque_atual or 0) }}
+                            </td>
+
+                            <td>{{ item.observacao or '-' }}</td>
+
+                            <td>
+                                <div>{{ item.usuario_nome or 'Sistema' }}</div>
+                                
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="sem-dados">Nenhuma saída encontrada com os filtros selecionados.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top:80px;">
+            {% if assinatura_src %}
+            <tr>
+                <td align="center" style="padding-bottom:6px;">
+                    <img src="{{ assinatura_src }}" class="assinatura-img" alt="Assinatura" width="530px">
+                </td>
+            </tr>
+            {% endif %}
+
+           <tr>
+                <td>
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                            <td width="50%"></td>
+
+                            <td width="440" style="border-top:1px solid #000000; font-size:1px; line-height:1px;">
+                                &nbsp;
+                            </td>
+
+                            <td width="50%"></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <tr>
+                <td align="center" style="padding-top:6px;">
+                    <span class="assinatura-nome">{{ assinatura_nome or 'Usuário' }}</span>
+                </td>
+            </tr>
+        </table>
+
+        <div class="rodape-final">
+            Total de registros: {{ dados|length }}
+        </div>
+
+    </div>
+
+  <div id="footer_page_number" style="text-align:right; font-size:10px; color:#9ca3af;">
+    Página <pdf:pagenumber> / <pdf:pagecount>
+</div>
+
+</body>
+</html>

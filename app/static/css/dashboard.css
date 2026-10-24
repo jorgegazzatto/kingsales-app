@@ -1,0 +1,103 @@
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+}
+
+.dashboard-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    border-left: 5px solid #0d6efd;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 95px;
+    transition: all 0.2s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.12);
+}
+
+.dashboard-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.dashboard-info small {
+    display: block;
+    color: #6c757d;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.dashboard-info h5 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.card-green { border-left-color: #198754; }
+.card-green .dashboard-icon { background: #198754; }
+.card-green h5 { color: #198754; }
+
+.card-blue { border-left-color: #0d6efd; }
+.card-blue .dashboard-icon { background: #0d6efd; }
+.card-blue h5 { color: #0d6efd; }
+
+.card-red { border-left-color: #dc3545; }
+.card-red .dashboard-icon { background: #dc3545; }
+.card-red h5 { color: #dc3545; }
+
+.card-yellow { border-left-color: #f59f00; }
+.card-yellow .dashboard-icon { background: #f59f00; }
+.card-yellow h5 { color: #f59f00; }
+
+.card-dark { border-left-color: #212529; }
+.card-dark .dashboard-icon { background: #212529; }
+.card-dark h5 { color: #212529; }
+
+.card-purple { border-left-color: #6f42c1; }
+.card-purple .dashboard-icon { background: #6f42c1; }
+.card-purple h5 { color: #6f42c1; }
+
+@media (max-width: 1400px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+}
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}

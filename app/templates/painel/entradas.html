@@ -1,0 +1,521 @@
+{% extends "painel/base.html" %}
+
+{% block title %}Entradas de Estoque - {{ config_sistema.nome_sistema }}{% endblock %}
+{% block page_title %}Entradas de Estoque{% endblock %}
+
+{% block content %}
+<div class="content-card">
+
+    <!-- TOPO -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h4 class="mb-0">Entradas de Estoque</h4>
+            <small class="text-muted">Histórico de entradas realizadas nos produtos</small>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" onclick="limparFiltros()">
+                <i class="bi bi-x-circle me-1"></i> Limpar
+            </button>
+
+            <button class="btn btn-primary" id="btnRelatorio" type="button">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Relatório
+            </button>
+
+            <form id="formRelatorioEntradas" method="POST" action="/entradas/relatorio" target="_blank" style="display:none;">
+                <input type="hidden" name="data_inicial" id="rel_data_inicial">
+                <input type="hidden" name="data_final" id="rel_data_final">
+                <input type="hidden" name="produto_id" id="rel_produto_id">
+                <input type="hidden" name="usuario_id" id="rel_usuario_id">
+            </form>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-2">
+            <label>Data inicial</label>
+            <input type="date" id="data_inicial" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data final</label>
+            <input type="date" id="data_final" class="form-control">
+        </div>
+
+        <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoHoje()">Hoje</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoOntem()">Ontem</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoMes()">Este mês</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalho7dias()">7 dias</button>
+        </div>
+
+        <div class="col-md-3">
+            <label>Produto</label>
+            <select id="produto_id" class="form-select">
+                <option value="">Todos</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Usuário</label>
+            <select id="usuario_id" class="form-select">
+                <option value="">Todos</option>
+            </select>
+        </div>
+
+    </div>
+
+    <!-- TABELA -->
+    <div class="table-responsive">
+        <table class="table align-middle table-hover" id="tabela">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Produto</th>
+                    <th>Quantidade</th>
+                    <th>Estoque Anterior</th>
+                    <th>Estoque Atual</th>
+                    <th>Usuário</th>
+                    <th>Observação</th>
+                    <th style="width: 90px;" class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+</div>
+
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasEntrada" aria-labelledby="offcanvasEntradaLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="offcanvasEntradaLabel">
+            <i class="bi bi-box-arrow-in-down me-2"></i>Detalhes da Entrada
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+
+    <div class="offcanvas-body">
+
+        <div class="mb-3">
+            <h6>Informações Gerais</h6>
+            <div class="mb-2"><strong>Data:</strong> <span id="viewData"></span></div>
+            <div class="mb-2"><strong>Tipo:</strong> <span id="viewTipo"></span></div>
+            <div class="mb-2"><strong>Produto:</strong> <span id="viewProduto"></span></div>
+            <div class="mb-2"><strong>ID do Produto:</strong> <span id="viewProdutoId"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Movimentação</h6>
+            <div class="mb-2"><strong>Quantidade:</strong> <span id="viewQuantidade"></span></div>
+            <div class="mb-2"><strong>Estoque Anterior:</strong> <span id="viewEstoqueAnterior"></span></div>
+            <div class="mb-2"><strong>Estoque Atual:</strong> <span id="viewEstoqueAtual"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Observação</h6>
+            <div class="mb-2"><span id="viewObservacao"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Usuário</h6>
+            <div class="mb-2"><strong>Nome:</strong> <span id="viewUsuario"></span></div>
+            <div class="mb-2"><strong>ID do Usuário:</strong> <span id="viewUsuarioId"></span></div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+let referencia = 'entradas';
+</script>
+
+<script>
+function formatarNumeroIntOuDecimal(valor) {
+    const numero = Number(valor || 0);
+
+    if (Number.isInteger(numero)) {
+        return numero.toString();
+    }
+
+    return numero.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+</script>
+
+<script>
+async function listar() {
+    const tbody = document.getElementById("tbody");
+    if (!tbody) return;
+
+    if ($.fn.DataTable.isDataTable('#tabela')) {
+        $('#tabela').DataTable().clear().destroy();
+    }
+
+    try {
+        const params = new URLSearchParams({
+            data_inicial: document.getElementById('data_inicial').value,
+            data_final: document.getElementById('data_final').value,
+            produto_id: document.getElementById('produto_id').value,
+            usuario_id: document.getElementById('usuario_id').value
+        });
+
+        const response = await fetch(`/${referencia}/listar?${params}`);
+        const lista = await response.json();
+
+        let html = "";
+
+        lista.forEach(item => {
+            html += `
+                <tr>
+                    <td style="cursor:pointer" onclick='visualizarEntrada(${JSON.stringify(item)})'>${item.data_movimentacao_formatada || ''}</td>
+                    <td style="cursor:pointer" onclick='visualizarEntrada(${JSON.stringify(item)})'>${item.produto_nome || ''}</td>
+                    <td style="cursor:pointer" onclick='visualizarEntrada(${JSON.stringify(item)})'>
+                        <span class="badge bg-success">${formatarNumeroIntOuDecimal(item.quantidade)}</span>
+                    </td>
+                    <td style="cursor:pointer" onclick='visualizarEntrada(${JSON.stringify(item)})'>${formatarNumeroIntOuDecimal(item.estoque_anterior)}</td>
+                    <td style="cursor:pointer" onclick='visualizarEntrada(${JSON.stringify(item)})'>${formatarNumeroIntOuDecimal(item.estoque_atual)}</td>
+                    <td style="cursor:pointer" onclick='visualizarEntrada(${JSON.stringify(item)})'>${item.usuario_nome || item.usuario_id || ''}</td>
+                    <td style="cursor:pointer" onclick='visualizarEntrada(${JSON.stringify(item)})'>${item.observacao || ''}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-danger"
+                            onclick='excluirRegistro(${JSON.stringify(item.id)}, ${JSON.stringify(item.produto_nome || "")})'
+                            title="Excluir">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+
+        $('#tabela').DataTable({
+            responsive: true,
+            pageLength: 10,
+            ordering: false,
+            destroy: true,
+            language: {
+                emptyTable: "Nenhum registro encontrado"
+            }
+        });
+
+    } catch (error) {
+        mensagemErro("Erro ao carregar entradas");
+    }
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", async function () {
+    preencherDatasHoje();
+    await carregarProdutosFiltro();
+    await carregarUsuariosFiltro();
+    listar();
+});
+</script>
+
+<script>
+function iniciarDataTable() {
+    $('#tabela').DataTable({
+        responsive: true,
+        pageLength: 10,
+        ordering: false,
+        language: {
+            emptyTable: "Nenhum registro encontrado"
+        }
+    });
+}
+</script>
+
+<script>
+function setDatas(inicio, fim) {
+    document.getElementById('data_inicial').value = inicio;
+    document.getElementById('data_final').value = fim;
+    listar();
+}
+
+function formatarData(data) {
+    return data.toISOString().split('T')[0];
+}
+
+function atalhoHoje() {
+    const hoje = new Date();
+    const d = formatarData(hoje);
+    setDatas(d, d);
+}
+
+function atalhoOntem() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const data = formatarData(d);
+    setDatas(data, data);
+}
+
+function atalhoMes() {
+    const hoje = new Date();
+    const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    setDatas(formatarData(inicio), formatarData(hoje));
+}
+
+function atalho7dias() {
+    const hoje = new Date();
+    const inicio = new Date();
+    inicio.setDate(hoje.getDate() - 7);
+    setDatas(formatarData(inicio), formatarData(hoje));
+}
+</script>
+
+<script>
+function limparFiltros() {
+    preencherDatasHoje();
+
+    if ($('#produto_id').hasClass('select2-hidden-accessible')) {
+        $('#produto_id').val('').trigger('change');
+    } else {
+        document.getElementById('produto_id').value = '';
+    }
+
+    if ($('#usuario_id').hasClass('select2-hidden-accessible')) {
+        $('#usuario_id').val('').trigger('change');
+    } else {
+        document.getElementById('usuario_id').value = '';
+    }
+
+    listar();
+}
+</script>
+
+<script>
+function getDataHoje() {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+function preencherDatasHoje() {
+    const hoje = getDataHoje();
+    document.getElementById('data_inicial').value = hoje;
+    document.getElementById('data_final').value = hoje;
+}
+</script>
+
+<script>
+
+    async function carregarProdutosFiltro() {
+    const select = document.getElementById('produto_id');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/entradas/listar-produtos');
+        const lista = await response.json();
+
+        let options = '<option value="">Todos</option>';
+
+        lista.forEach(item => {
+            options += `<option value="${item.id}">${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+        if ($('#produto_id').hasClass('select2-hidden-accessible')) {
+            $('#produto_id').select2('destroy');
+        }
+
+        $('#produto_id').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Selecionar produto',
+            allowClear: true
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar produtos do filtro');
+    }
+}
+
+</script>
+
+<script>
+async function carregarUsuariosFiltro() {
+    const select = document.getElementById('usuario_id');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/entradas/listar-usuarios');
+        const lista = await response.json();
+
+        let options = '<option value="">Todos</option>';
+
+        lista.forEach(item => {
+            options += `<option value="${item.id}">${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+        if ($('#usuario_id').hasClass('select2-hidden-accessible')) {
+            $('#usuario_id').select2('destroy');
+        }
+
+        $('#usuario_id').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Selecionar usuário',
+            allowClear: true
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar usuários do filtro');
+    }
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const dataInicial = document.getElementById('data_inicial');
+    const dataFinal = document.getElementById('data_final');
+    const produtoId = document.getElementById('produto_id');
+    const usuarioId = document.getElementById('usuario_id');
+
+    if (dataInicial) {
+        dataInicial.addEventListener('change', listar);
+    }
+
+    if (dataFinal) {
+        dataFinal.addEventListener('change', listar);
+    }
+
+    if (produtoId) {
+        $('#produto_id').on('change', function () {
+            listar();
+        });
+    }
+
+    if (usuarioId) {
+        $('#usuario_id').on('change', function () {
+            listar();
+        });
+    }
+});
+</script>
+
+<script>
+function textoOuPadrao(valor, padrao = 'Não informado') {
+    return valor && String(valor).trim() !== '' ? valor : padrao;
+}
+
+function visualizarEntrada(dados) {
+    document.getElementById('viewData').textContent = textoOuPadrao(dados.data_movimentacao_formatada || dados.data_movimentacao);
+    document.getElementById('viewTipo').textContent = textoOuPadrao(dados.tipo);
+    document.getElementById('viewProduto').textContent = textoOuPadrao(dados.produto_nome);
+    document.getElementById('viewProdutoId').textContent = textoOuPadrao(dados.produto_id);
+
+    document.getElementById('viewQuantidade').textContent = formatarNumeroIntOuDecimal(dados.quantidade);
+    document.getElementById('viewEstoqueAnterior').textContent = formatarNumeroIntOuDecimal(dados.estoque_anterior);
+    document.getElementById('viewEstoqueAtual').textContent = formatarNumeroIntOuDecimal(dados.estoque_atual);
+
+    document.getElementById('viewObservacao').textContent = textoOuPadrao(dados.observacao);
+    document.getElementById('viewUsuario').textContent = textoOuPadrao(dados.usuario_nome, 'Sem usuário');
+    document.getElementById('viewUsuarioId').textContent = textoOuPadrao(dados.usuario_id);
+
+    const offcanvasEl = document.getElementById('offcanvasEntrada');
+    const offcanvas = new bootstrap.Offcanvas(offcanvasEl);
+    offcanvas.show();
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnRelatorio = document.getElementById('btnRelatorio');
+
+    if (btnRelatorio) {
+        btnRelatorio.addEventListener('click', function () {
+            document.getElementById('rel_data_inicial').value = document.getElementById('data_inicial').value || '';
+            document.getElementById('rel_data_final').value = document.getElementById('data_final').value || '';
+            document.getElementById('rel_produto_id').value = document.getElementById('produto_id').value || '';
+            document.getElementById('rel_usuario_id').value = document.getElementById('usuario_id').value || '';
+
+            document.getElementById('formRelatorioEntradas').submit();
+        });
+    }
+});
+</script>
+
+
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+    const dataInicial = document.getElementById('data_inicial');
+    const dataFinal = document.getElementById('data_final');
+
+    if (dataInicial) {
+        dataInicial.addEventListener('change', listar);
+    }
+
+    if (dataFinal) {
+        dataFinal.addEventListener('change', listar);
+    }
+
+    $(document).on('change', '#produto_id', function () {
+        listar();
+    });
+
+    $(document).on('change', '#usuario_id', function () {
+        listar();
+    });
+});
+
+
+
+
+async function excluirRegistro(id, nome) {
+    const confirmacao = await confirmarAcao({
+        titulo: 'Excluir movimentação?',
+        texto: `Deseja realmente excluir a movimentação de "${nome}"?`,
+        textoConfirmar: 'Sim, excluir',
+        textoCancelar: 'Cancelar'
+    });
+
+    if (!confirmacao.isConfirmed) return;
+
+    mostrarLoading('Excluindo registro...');
+
+    try {
+        const response = await fetch('/entradas/excluir', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            await mensagemSucesso(data.mensagem || 'Registro excluído com sucesso.');
+            listar();
+        } else {
+            mensagemAviso(data.mensagem || 'Não foi possível excluir o registro.');
+        }
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro('Erro ao excluir registro.');
+    }
+}
+
+</script>
+
+{% endblock %}

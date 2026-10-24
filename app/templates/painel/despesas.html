@@ -1,0 +1,2255 @@
+{% extends "painel/base.html" %}
+
+{% block title %}Despesas - {{ config_sistema.nome_sistema }}{% endblock %}
+{% block page_title %}Despesas{% endblock %}
+
+{% block content %}
+<div class="content-card">
+
+    <!-- TOPO -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h4 class="mb-0">Despesas</h4>
+            <small class="text-muted">Controle de despesas e contas a pagar</small>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+             {% if 'excluir' in acoes_usuario %}
+            <button type="button" class="btn btn-outline-danger d-none" id="btnExcluirSelecionados">
+                <i class="bi bi-trash me-1"></i> Excluir Selecionados
+            </button>
+            {% endif %}
+
+            {% if 'inserir' in acoes_usuario %}
+            <button class="btn btn-danger" id="btnNovo" type="button" data-bs-toggle="modal" data-bs-target="#modal">
+                <i class="bi bi-plus-circle me-1"></i> Nova Despesa
+            </button>
+            {% endif %}
+
+            <button class="btn btn-outline-secondary" type="button" onclick="limparFiltros()">
+                <i class="bi bi-x-circle me-1"></i> Limpar
+            </button>
+
+            <button class="btn btn-primary" id="btnRelatorio" type="button">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Relatório
+            </button>
+
+            <form id="formRelatorioDespesas" method="POST" action="/despesas/relatorio" target="_blank" style="display:none;">
+                <input type="hidden" name="data_inicial" id="rel_data_inicial">
+                <input type="hidden" name="data_final" id="rel_data_final">
+                <input type="hidden" name="status" id="rel_status">
+                <input type="hidden" name="fornecedor" id="rel_fornecedor">
+                <input type="hidden" name="centro_custo" id="rel_centro_custo">
+                <input type="hidden" name="plano_conta" id="rel_plano_conta">
+            </form>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="row g-3 mb-3">
+
+        <div class="col-md-2">
+            <label>Data inicial</label>
+            <input type="date" id="data_inicial" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+            <label>Data final</label>
+            <input type="date" id="data_final" class="form-control">
+        </div>
+
+        <div class="col-md-4 d-flex align-items-end gap-2 flex-wrap">
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoHoje()">Hoje</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoOntem()">Ontem</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalhoMes()">Este mês</button>
+            <button class="btn btn-atalho-log btn-sm" type="button" onclick="atalho7dias()">7 dias</button>
+        </div>
+
+        <div class="col-md-2">
+            <label>Status</label>
+            <select id="status" class="form-select">
+                <option value="">Todos</option>
+                <option value="Pendente">Pendente</option>
+                <option value="Pago">Pago</option>
+                <option value="Atrasado">Atrasado</option>
+                <option value="Cancelado">Cancelado</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Fornecedor</label>
+            <select id="fornecedor" class="form-select">
+                <option value="">Todos</option>
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Centro de custo</label>
+            <select id="centro_custo" class="form-select">
+                <option value="">Todos</option>
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Plano de contas</label>
+            <select id="plano_conta" class="form-select">
+                <option value="">Todos</option>
+            </select>
+        </div>
+
+    </div>
+
+    <!-- TABELA -->
+    <div class="table-responsive">
+        <table class="table align-middle table-hover" id="tabela">
+            <thead>
+                <tr>
+                    <th style="width: 20px;" class="text-center">
+                        <input type="checkbox" id="checkTodos">
+                    </th> 
+                    <th>Vencimento</th>
+                    <th>Descrição</th>
+                    <th>Fornecedor</th>
+                    <th>Plano de Conta</th>
+                    <th>Centro de Custo</th>
+                    <th>Valor</th>
+                    <th>Subtotal</th>
+                    <th>Status</th>
+                    <th style="width: 190px;" class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+</div>
+
+
+<!-- OFFCANVAS VISUALIZAR -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasDespesa" aria-labelledby="offcanvasDespesaLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="offcanvasDespesaLabel">
+            <i class="bi bi-receipt me-2"></i>Detalhes da Despesa
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+
+    <div class="offcanvas-body">
+
+        <div class="mb-3">
+            <h6>Informações Gerais</h6>
+            <div class="mb-2"><strong>Descrição:</strong> <span id="viewDescricao"></span></div>
+            <div class="mb-2"><strong>Referência:</strong> <span id="viewReferencia"></span></div>
+            <div class="mb-2"><strong>Status:</strong> <span id="viewStatus"></span></div>
+            <div class="mb-2"><strong>Data de lançamento:</strong> <span id="viewDataLancamento"></span></div>
+            <div class="mb-2"><strong>Hora de lançamento:</strong> <span id="viewHoraLancamento"></span></div>
+            <div class="mb-2"><strong>Data de vencimento:</strong> <span id="viewDataVencimento"></span></div>
+            <div class="mb-2"><strong>Data de pagamento:</strong> <span id="viewDataPagamento"></span></div>
+            <div class="mb-2"><strong>Hora Lançamento:</strong> <span id="viewHora"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Valores</h6>
+            <div class="mb-2"><strong>Valor:</strong> <span id="viewValor"></span></div>
+            <div class="mb-2"><strong>Desconto:</strong> <span id="viewDesconto"></span></div>
+            <div class="mb-2"><strong>Multa:</strong> <span id="viewMulta"></span></div>
+            <div class="mb-2"><strong>Juros:</strong> <span id="viewJuros"></span></div>
+            <div class="mb-2"><strong>Subtotal:</strong> <span id="viewSubtotal"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Relacionamentos</h6>
+            <div class="mb-2"><strong>Fornecedor:</strong> <span id="viewFornecedor"></span></div>
+            <div class="mb-2"><strong>Forma de pagamento:</strong> <span id="viewFormaPagamento"></span></div>
+            <div class="mb-2"><strong>Plano de conta:</strong> <span id="viewPlanoConta"></span></div>
+            <div class="mb-2"><strong>Centro de custo:</strong> <span id="viewCentroCusto"></span></div>
+            <div class="mb-2"><strong>Frequência:</strong> <span id="viewFrequencia"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Controle</h6>
+            <div class="mb-2"><strong>Recorrente:</strong> <span id="viewRecorrente"></span></div>
+            <div class="mb-2"><strong>Quantidade de parcelas:</strong> <span id="viewQtdParcelas"></span></div>
+            <div class="mb-2"><strong>Parcela:</strong> <span id="viewParcela"></span></div>
+            <div class="mb-2"><strong>ID Ref:</strong> <span id="viewIdRef"></span></div>
+            <div class="mb-2"><strong>Usuário lançamento:</strong> <span id="viewUsuarioLancamento"></span></div>
+            <div class="mb-2"><strong>Usuário pagamento:</strong> <span id="viewUsuarioPagamento"></span></div>
+        </div>
+
+        <div class="mb-3">
+            <h6>Observações</h6>
+            <div class="mb-2"><span id="viewObservacoes"></span></div>
+        </div>
+
+    </div>
+</div>
+
+
+
+
+<!-- MODAL CADASTRO -->
+<div class="modal fade" id="modal" tabindex="-1" aria-labelledby="modalDespesaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalDespesaLabel">
+                    <i class="bi bi-cash-stack me-2"></i><span id="tituloModal"> Cadastro de Despesa</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <form id="form" method="POST">
+                <input type="hidden" name="id" id="id">
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <h6>Dados da Despesa</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="descricao" class="form-label">Descrição</label>
+                                <input type="text" class="form-control" id="descricao" name="descricao" required>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="data_lancamento" class="form-label">Data Lançamento</label>
+                                <input type="date" class="form-control" id="data_lancamento" name="data_lancamento">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="data_vencimento" class="form-label">Data Vencimento</label>
+                                <input type="date" class="form-control" id="data_vencimento" name="data_vencimento">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="data_pagamento" class="form-label">Data Pagamento</label>
+                                <input type="date" class="form-control" id="data_pagamento" name="data_pagamento">
+                            </div>
+
+                            
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Valores</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="valor" class="form-label">Valor</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="valor" name="valor">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="desconto" class="form-label">Desconto</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="desconto" name="desconto" >
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="multa" class="form-label">Multa</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="multa" name="multa" value="0.00">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="juros" class="form-label">Juros</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="juros" name="juros" value="0.00">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="subtotal" class="form-label">Subtotal</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control bg-light" id="subtotal" name="subtotal" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Classificação</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="fornecedor_cadastro" class="form-label">Fornecedor</label>
+                                <select class="form-select" id="fornecedor_cadastro" name="fornecedor">
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="forma_pagamento" class="form-label">Forma de Pagamento</label>
+                                <select class="form-select" id="forma_pagamento" name="forma_pagamento">
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="plano_conta_cadastro" class="form-label">Plano de Conta</label>
+                                <select class="form-select" id="plano_conta_cadastro" name="plano_conta">
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="centro_custo_cadastro" class="form-label">Centro de Custo</label>
+                                <select class="form-select" id="centro_custo_cadastro" name="centro_custo">
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="frequencia" class="form-label">Frequência</label>
+                                <select class="form-select" id="frequencia" name="frequencia">
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="qtd_parcelas" class="form-label">Qtd Parcelas (Recorrencia)</label>
+                                <input placeholder="Repetir x Vezes" type="number" class="form-control" id="qtd_parcelas" name="qtd_parcelas" value="1" min="1">
+                            </div>
+
+                            
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <h6>Observações</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="observacoes" class="form-label">Observações</label>
+                                <textarea class="form-control" id="observacoes" name="observacoes" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSalvar">Salvar Alterações</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+<!-- MODAL BAIXAR CONTA -->
+<div class="modal fade" id="modalBaixa" tabindex="-1" aria-labelledby="modalBaixaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalBaixaLabel">
+                    <i class="bi bi-cash-coin me-2"></i><span id="tituloModalBaixa">Baixar Conta</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <form id="formBaixa" method="POST">
+                <input type="hidden" name="id" id="id_baixa">
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <h6>Informações da Conta</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="descricao_baixa" class="form-label">Descrição</label>
+                                <input type="text" class="form-control bg-light" id="descricao_baixa" readonly>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="valor_baixa" class="form-label">Valor</label>
+                                <input type="text" class="form-control bg-light" id="valor_baixa" readonly>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="data_pagamento_baixa" class="form-label">Data do Pagamento</label>
+                                <input type="date" class="form-control" id="data_pagamento_baixa" name="data_pagamento">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Ajustes</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="desconto_baixa" class="form-label">Desconto</label>
+                                <input oninput="aplicarMascaraValorBR(this); calcularSubtotalBaixa()" type="text" class="form-control" id="desconto_baixa" name="desconto">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="multa_baixa" class="form-label">Multa</label>
+                                <input oninput="aplicarMascaraValorBR(this); calcularSubtotalBaixa()" type="text" class="form-control" id="multa_baixa" name="multa">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="juros_baixa" class="form-label">Juros</label>
+                                <input oninput="aplicarMascaraValorBR(this); calcularSubtotalBaixa()" type="text" class="form-control" id="juros_baixa" name="juros">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="forma_pagamento_baixa" class="form-label">Forma de Pagamento</label>
+                                <select class="form-select" id="forma_pagamento_baixa" name="forma_pagamento">
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="subtotal_baixa" class="form-label">Subtotal</label>
+                                <input type="text" class="form-control bg-light" id="subtotal_baixa" name="subtotal" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <h6>Observações</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="observacoes_baixa" class="form-label">Observações</label>
+                                <textarea class="form-control" id="observacoes_baixa" name="observacoes" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-success" id="btnSalvarBaixa">Confirmar Baixa</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- MODAL PARCELAR CONTA -->
+<div class="modal fade" id="modalParcelar" tabindex="-1" aria-labelledby="modalParcelarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalParcelarLabel">
+                    <i class="bi bi-node-plus me-2"></i><span id="tituloModalParcelar">Parcelar Conta</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <form id="formParcelar" method="POST">
+                <input type="hidden" name="id" id="id_parcelar">
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <h6>Informações da Conta</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="descricao_parcelar" class="form-label">Descrição</label>
+                                <input type="text" class="form-control bg-light" id="descricao_parcelar" readonly>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="valor_parcelar" class="form-label">Valor Atual</label>
+                                <input type="text" class="form-control bg-light" id="valor_parcelar" readonly>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="subtotal_parcelar" class="form-label">Subtotal</label>
+                                <input type="text" class="form-control bg-light" id="subtotal_parcelar" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Parcelamento</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="qtd_parcelas_parcelar" class="form-label">Qtd Parcelas</label>
+                                <input type="number" class="form-control" id="qtd_parcelas_parcelar" name="qtd_parcelas" min="2" value="2">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="frequencia_parcelar" class="form-label">Frequência</label>
+                                <select class="form-select" id="frequencia_parcelar" name="frequencia">
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="valor_parcela_parcelar" class="form-label">Valor por Parcela</label>
+                                <input type="text" class="form-control bg-light" id="valor_parcela_parcelar" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <h6>Observações</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="observacoes_parcelar" class="form-label">Observações</label>
+                                <textarea class="form-control" id="observacoes_parcelar" name="observacoes" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-dark" id="btnSalvarParcelamento">Confirmar Parcelamento</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL ARQUIVOS -->
+<div class="modal fade" id="modalArquivo" tabindex="-1" aria-labelledby="modalArquivoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalArquivoLabel">
+                    <i class="bi bi-paperclip me-2"></i><span id="tituloModalArquivo"><span>Arquivos da Despesa</span> <span id="arquivo_descricao_registro"></span></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <form id="formArquivo" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="id_registro" id="arquivo_id_registro">
+                <input type="hidden" name="tipo" id="arquivo_tipo" value="despesa">
+                <input type="hidden" name="tabela" id="arquivo_tabela" value="despesas">
+
+                <div class="modal-body">
+
+                    
+                    <div class="row g-4">
+                        <div class="col-md-5">
+                            <div class="border rounded-3 p-3 h-100">
+                                <h6 class="mb-3">Novo Arquivo</h6>
+
+                                <div class="mb-3">
+                                    <label for="arquivo_descricao" class="form-label">Descrição do Arquivo</label>
+                                    <input type="text" class="form-control" id="arquivo_descricao" name="descricao" placeholder="Ex: Comprovante, Boleto, Nota fiscal">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="arquivo_file" class="form-label">Arquivo</label>
+                                    <input type="file" class="form-control" id="arquivo_file" name="arquivo" required>
+                                    <small class="text-muted">
+                                        Permitidos: PDF, ZIP, RAR, JPG, JPEG, PNG, WEBP, GIF, DOC, DOCX, XLS, XLSX, CSV, XML e TXT
+                                    </small>
+                                </div>
+
+                                <div class="border rounded-3 p-3 text-center bg-light">
+                                    <div class="mb-2 fw-semibold">Pré-visualização</div>
+
+                                    <img
+                                        id="previewArquivo"
+                                        src="/static/img/arquivos/sem-foto.png"
+                                        alt="Pré-visualização"
+                                        class="img-fluid rounded"
+                                        style="max-height: 140px; object-fit: contain;"
+                                    >
+
+                                    <div class="mt-2 small text-muted" id="nomeArquivoPreview">
+                                        Nenhum arquivo selecionado
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-7">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0">Arquivos Vinculados</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="listarArquivosRegistro()">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
+
+                                <div id="listaArquivos" class="row g-3">
+                                    <div class="col-12 text-muted small">
+                                        Nenhum arquivo carregado.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-secondary" id="btnSalvarArquivo">Enviar Arquivo</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+{% endblock %}
+
+{% block scripts %}
+
+<script id="acoes-usuario-json" type="application/json">
+    {{ acoes_usuario | tojson | safe }}
+</script>
+
+<script>
+let referencia = 'despesas';
+
+const acoesUsuario = JSON.parse(
+    document.getElementById('acoes-usuario-json').textContent
+);
+</script>
+
+
+<script>
+function textoOuPadrao(valor, padrao = 'Não informado') {
+    return valor && String(valor).trim() !== '' ? valor : padrao;
+}
+
+function formatarValorVisual(valor) {
+    if (valor === null || valor === undefined || valor === '') return '0,00';
+
+    const numero = Number(valor);
+    if (isNaN(numero)) return '0,00';
+
+    return numero.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function formatarDataVisual(data) {
+    if (!data) return '';
+
+    const dataObj = new Date(data);
+
+    if (isNaN(dataObj.getTime())) return data;
+
+    return dataObj.toLocaleDateString('pt-BR', {
+        timeZone: 'UTC'
+    });
+}
+</script>
+
+<script>
+async function listar() {
+    const tbody = document.getElementById("tbody");
+
+    if (!tbody) return;
+
+    if ($.fn.DataTable.isDataTable('#tabela')) {
+        $('#tabela').DataTable().destroy();
+    }
+
+    try {
+        const campoDataInicial = document.getElementById('data_inicial');
+        const campoDataFinal = document.getElementById('data_final');
+        const campoStatus = document.getElementById('status');
+        const campoFornecedor = document.getElementById('fornecedor');
+        const campoCentroCusto = document.getElementById('centro_custo');
+        const campoPlanoConta = document.getElementById('plano_conta');
+
+        const params = new URLSearchParams({
+            data_inicial: campoDataInicial ? campoDataInicial.value : '',
+            data_final: campoDataFinal ? campoDataFinal.value : '',
+            status: campoStatus ? campoStatus.value : '',
+            fornecedor: campoFornecedor ? campoFornecedor.value : '',
+            centro_custo: campoCentroCusto ? campoCentroCusto.value : '',
+            plano_conta: campoPlanoConta ? campoPlanoConta.value : ''
+        });
+
+        const response = await fetch(`/${referencia}/listar?${params}`);
+        const texto = await response.text();
+
+        console.log('STATUS HTTP:', response.status);
+        console.log('RESPOSTA BRUTA:', texto);
+
+        const lista = JSON.parse(texto);
+
+        let html = "";
+
+        lista.forEach(item => {
+            const badge = {
+                Pendente: 'warning',
+                Pago: 'success',
+                Atrasado: 'danger',
+                Cancelado: 'secondary'
+            }[item.status] || 'dark';
+
+            const podeEditar = acoesUsuario.includes('editar');
+            const podeExcluir = acoesUsuario.includes('excluir');
+            const podeBaixar = item.status !== 'Pago';
+            const podeCancelarBaixa = item.status === 'Pago' && acoesUsuario.includes('editar');
+            const podeParcelar = item.status !== 'Pago' && acoesUsuario.includes('editar');
+            const podeInserirArquivo = acoesUsuario.includes('editar');
+
+            html += `
+                <tr>
+                    <td class="text-center">
+                        <input type="checkbox" class="check-item" value="${item.id}">
+                    </td> 
+                    <td>${formatarDataVisual(item.data_vencimento)}</td>
+                    <td>${textoOuPadrao(item.descricao, '')}</td>
+                    <td>${textoOuPadrao(item.fornecedor_nome, '')}</td>
+                    <td>${textoOuPadrao(item.plano_conta_nome, '')}</td>
+                    <td>${textoOuPadrao(item.centro_custo_nome, '')}</td>
+                    <td>${formatarValorVisual(item.valor)}</td>
+                    <td>${formatarValorVisual(item.subtotal)}</td>
+                    <td><span class="badge bg-${badge}">${textoOuPadrao(item.status, '')}</span></td>
+                    <td>
+                        <div class="acoes-tabela">
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-info"
+                                onclick='visualizarRegistro(${JSON.stringify(item)})'
+                                title="Visualizar">
+                                <i class="bi bi-eye"></i>
+                            </button>
+
+                            ${podeEditar ? `
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-primary"
+                                onclick='editarRegistro(${JSON.stringify(item)})'
+                                title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            ` : ''}
+
+                            ${podeExcluir ? `
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-danger"
+                                onclick='excluirRegistro(${JSON.stringify(item.id)}, ${JSON.stringify(item.descricao || "")})'
+                                title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            ` : ''}
+
+                            ${podeBaixar ? `
+                            <button 
+                                type="button" 
+                                class="btn btn-sm btn-success"
+                                onclick='abrirBaixa(${JSON.stringify(item)})'
+                                title="Dar Baixa">
+                                <i class="bi bi-cash-coin"></i>
+                            </button>
+                            ` : ''}
+
+
+                            ${podeCancelarBaixa ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-secondary"
+                                    onclick='cancelarBaixa(${JSON.stringify(item.id)}, ${JSON.stringify(item.descricao || "")})'
+                                    title="Cancelar Baixa">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                                ` : ''}
+
+
+                                ${podeParcelar ? `
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-dark"
+                                        onclick='abrirParcelamento(${JSON.stringify(item)})'
+                                        title="Parcelar Conta">
+                                        <i class="bi bi-node-plus"></i>
+                                    </button>
+                                    ` : ''}
+
+
+
+                                    ${podeInserirArquivo ? `
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-secondary"
+                                            onclick='abrirArquivo(${JSON.stringify(item)})'
+                                            title="Inserir Arquivo">
+                                            <i class="bi bi-paperclip"></i>
+                                        </button>
+                                        ` : ''}
+                             
+                             
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+        iniciarDataTable();
+
+    } catch (error) {
+        console.error(error);
+        mensagemErro("Erro ao carregar despesas");
+    }
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", async function () {
+    
+    await carregarFornecedoresFiltro();
+    await carregarCentrosCustoFiltro();
+    await carregarPlanoContasFiltro();
+    listar();
+
+    
+    $('#cliente_cadastro').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: 'Selecionar Cliente',
+    allowClear: true,
+    dropdownParent: $('#modal')
+});
+
+$('#forma_pagamento').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: 'Selecionar Forma PGTO',
+    allowClear: true,
+    dropdownParent: $('#modal')
+});
+
+$('#plano_conta_cadastro').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: 'Selecionar Plano de Contas',
+    allowClear: true,
+    dropdownParent: $('#modal')
+});
+
+$('#frequencia').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: 'Selecionar Frequência',
+    allowClear: true,
+    dropdownParent: $('#modal')
+});
+
+$('#fornecedor_cadastro').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: 'Selecionar Fornecedor',
+    allowClear: true,
+    dropdownParent: $('#modal')
+});
+
+    $('#centro_custo_cadastro').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Selecionar Centro de Custo',
+            allowClear: true,
+            dropdownParent: $('#modal')
+        });
+
+    
+  
+
+
+    
+});
+</script>
+
+<script>
+function iniciarDataTable() {
+    $('#tabela').DataTable({
+        responsive: true,
+        pageLength: 10,
+        ordering: false,
+        language: {
+            emptyTable: "Nenhum registro encontrado"
+        }
+    });
+}
+</script>
+
+
+
+<script>
+// ===============================
+// 📅 CONTROLE DE DATAS
+// ===============================
+function setDatas(inicio, fim) {
+    document.getElementById('data_inicial').value = inicio;
+    document.getElementById('data_final').value = fim;
+    listar();
+}
+
+// ===============================
+// 🚀 ATALHOS
+// ===============================
+function atalhoHoje() {
+    const hoje = getDataHoje();
+    setDatas(hoje, hoje);
+}
+
+function atalhoOntem() {
+    const ontem = getDataOntem();
+    setDatas(ontem, ontem);
+}
+
+function atalhoMes() {
+    setDatas(getDataInicioMes(), getDataFimMes());
+}
+
+function atalho7dias() {
+    const hoje = new Date();
+    const inicio = new Date();
+    inicio.setDate(hoje.getDate() - 7);
+
+    setDatas(formatarDataISO(inicio), getDataHoje());
+}
+</script>
+
+<script>
+// ===============================
+// 🧹 LIMPAR FILTROS (PADRÃO MÊS)
+// ===============================
+function limparFiltros() {
+    document.getElementById('data_inicial').value = getDataInicioMes();
+    document.getElementById('data_final').value = getDataFimMes();
+    document.getElementById('status').value = '';
+
+    if ($('#fornecedor').hasClass('select2-hidden-accessible')) {
+        $('#fornecedor').val('').trigger('change.select2');
+    } else {
+        document.getElementById('fornecedor').value = '';
+    }
+
+    if ($('#centro_custo').hasClass('select2-hidden-accessible')) {
+        $('#centro_custo').val('').trigger('change.select2');
+    } else {
+        document.getElementById('centro_custo').value = '';
+    }
+
+    if ($('#plano_conta').hasClass('select2-hidden-accessible')) {
+        $('#plano_conta').val('').trigger('change.select2');
+    } else {
+        document.getElementById('plano_conta').value = '';
+    }
+
+    listar();
+}
+</script>
+
+<script>
+// ===============================
+// 📅 INICIALIZAÇÃO PADRÃO (MÊS)
+// ===============================
+document.addEventListener("DOMContentLoaded", function () {
+    setDatas(getDataInicioMes(), getDataFimMes());
+});
+</script>
+
+
+
+<script>
+async function carregarFornecedoresFiltro() {
+    const select = document.getElementById('fornecedor');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/fornecedores/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Todos</option>';
+
+        lista.forEach(item => {
+            options += `<option value="${item.id}">${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+        $('#fornecedor').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Selecionar fornecedor',
+            allowClear: true
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar fornecedores do filtro');
+    }
+}
+</script>
+
+<script>
+async function carregarCentrosCustoFiltro() {
+    const select = document.getElementById('centro_custo');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/centros_custo/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Todos</option>';
+
+        lista.forEach(item => {
+            options += `<option value="${item.id}">${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+        $('#centro_custo').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Selecionar centro de custo',
+            allowClear: true
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar centros de custo do filtro');
+    }
+}
+</script>
+
+<script>
+async function carregarPlanoContasFiltro() {
+    const select = document.getElementById('plano_conta');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/plano_contas/listar-select-despesas');
+        const lista = await response.json();
+
+        let options = '<option value="">Todos</option>';
+
+        lista.forEach(item => {
+            options += `<option value="${item.id}">${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+        $('#plano_conta').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Selecionar plano de contas',
+            allowClear: true
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar planos de contas do filtro');
+    }
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const dataInicial = document.getElementById('data_inicial');
+    const dataFinal = document.getElementById('data_final');
+    const status = document.getElementById('status');
+
+    if (dataInicial) dataInicial.addEventListener('change', listar);
+    if (dataFinal) dataFinal.addEventListener('change', listar);
+    if (status) status.addEventListener('change', listar);
+
+    $('#fornecedor').on('change', function () {
+        listar();
+    });
+
+    $('#centro_custo').on('change', function () {
+        listar();
+    });
+
+    $('#plano_conta').on('change', function () {
+        listar();
+    });
+});
+</script>
+
+<script>
+function textoOuPadrao(valor, padrao = 'Não informado') {
+    return valor && String(valor).trim() !== '' ? valor : padrao;
+}
+
+function visualizarRegistro(dados) {
+    document.getElementById('viewDescricao').textContent = textoOuPadrao(dados.descricao);
+    document.getElementById('viewReferencia').textContent = textoOuPadrao(dados.referencia);
+    document.getElementById('viewStatus').textContent = textoOuPadrao(dados.status);
+    
+    document.getElementById('viewDataLancamento').textContent = textoOuPadrao(formatarDataVisual(dados.data_lancamento));
+    document.getElementById('viewHoraLancamento').textContent = textoOuPadrao(dados.hora_lancamento);
+    document.getElementById('viewDataVencimento').textContent = textoOuPadrao(formatarDataVisual(dados.data_vencimento));
+    document.getElementById('viewDataPagamento').textContent = textoOuPadrao(formatarDataVisual(dados.data_pagamento));
+
+    document.getElementById('viewValor').textContent = formatarValorVisual(dados.valor);
+    document.getElementById('viewDesconto').textContent = formatarValorVisual(dados.desconto);
+    document.getElementById('viewMulta').textContent = formatarValorVisual(dados.multa);
+    document.getElementById('viewJuros').textContent = formatarValorVisual(dados.juros);
+    document.getElementById('viewSubtotal').textContent = formatarValorVisual(dados.subtotal);
+
+    document.getElementById('viewFornecedor').textContent = textoOuPadrao(dados.fornecedor_nome);
+    document.getElementById('viewFormaPagamento').textContent = textoOuPadrao(dados.forma_pagamento_nome);
+    document.getElementById('viewPlanoConta').textContent = textoOuPadrao(dados.plano_conta_nome);
+    document.getElementById('viewCentroCusto').textContent = textoOuPadrao(dados.centro_custo_nome);
+    document.getElementById('viewFrequencia').textContent = textoOuPadrao(dados.frequencia_nome);
+
+    document.getElementById('viewRecorrente').textContent = textoOuPadrao(dados.recorrente);
+    document.getElementById('viewQtdParcelas').textContent = textoOuPadrao(dados.qtd_parcelas);
+    document.getElementById('viewParcela').textContent = textoOuPadrao(dados.parcela);
+    document.getElementById('viewIdRef').textContent = textoOuPadrao(dados.id_ref);
+    document.getElementById('viewUsuarioLancamento').textContent = textoOuPadrao(dados.usuario_lanc);
+    document.getElementById('viewUsuarioPagamento').textContent = textoOuPadrao(dados.usuario_pgto);
+    document.getElementById('viewHora').textContent = textoOuPadrao(dados.hora);
+
+    document.getElementById('viewObservacoes').textContent = textoOuPadrao(dados.observacoes);
+
+    const offcanvasEl = document.getElementById('offcanvasDespesa');
+    const offcanvas = new bootstrap.Offcanvas(offcanvasEl);
+    offcanvas.show();
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnRelatorio = document.getElementById('btnRelatorio');
+
+    if (btnRelatorio) {
+        btnRelatorio.addEventListener('click', function () {
+            document.getElementById('rel_data_inicial').value = document.getElementById('data_inicial').value || '';
+            document.getElementById('rel_data_final').value = document.getElementById('data_final').value || '';
+            document.getElementById('rel_status').value = document.getElementById('status').value || '';
+            document.getElementById('rel_fornecedor').value = document.getElementById('fornecedor').value || '';
+            document.getElementById('rel_centro_custo').value = document.getElementById('centro_custo').value || '';
+            document.getElementById('rel_plano_conta').value = document.getElementById('plano_conta').value || '';
+
+            document.getElementById('formRelatorioDespesas').submit();
+        });
+    }
+});
+</script>
+
+
+
+<script>
+function valorDecimal(campoId) {
+    const valor = document.getElementById(campoId)?.value || '0';
+    return parseFloat(String(valor).replace(',', '.')) || 0;
+}
+
+function calcularSubtotal() {
+    const valor = valorParaNumero(document.getElementById('valor').value);
+    const desconto = valorParaNumero(document.getElementById('desconto').value);
+    const multa = valorParaNumero(document.getElementById('multa').value);
+    const juros = valorParaNumero(document.getElementById('juros').value);
+
+
+    const subtotal = valor - desconto + multa + juros;
+    document.getElementById('subtotal').value = formatarValorBR(subtotal);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    ['valor', 'desconto', 'multa', 'juros'].forEach(function(id) {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.addEventListener('input', calcularSubtotal);
+        }
+    });
+
+    calcularSubtotal();
+});
+</script>
+
+
+<script>
+function limparFormulario() {
+    document.getElementById('form').reset();
+    document.getElementById('id').value = '';
+
+    document.getElementById('desconto').value = '0.00';
+    document.getElementById('multa').value = '0.00';
+    document.getElementById('juros').value = '0.00';
+    document.getElementById('qtd_parcelas').value = '1';
+    document.getElementById('subtotal').value = '0.00';
+
+    const tituloModal = document.getElementById('tituloModal');
+    if (tituloModal) {
+        tituloModal.innerHTML = 'Cadastro de Despesa';
+    }
+}
+</script>
+
+
+
+
+<script>
+async function carregarFornecedoresCadastro(valorSelecionado = '') {
+    const select = document.getElementById('fornecedor_cadastro');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/fornecedores/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Selecione</option>';
+
+        lista.forEach(item => {
+            const selected = String(item.id) === String(valorSelecionado) ? 'selected' : '';
+            options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+</script>
+
+<script>
+async function carregarFormasPagamentoCadastro(valorSelecionado = '') {
+    const select = document.getElementById('forma_pagamento');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/formas_pagamento/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Selecione</option>';
+
+        lista.forEach(item => {
+            const selected = String(item.id) === String(valorSelecionado) ? 'selected' : '';
+            options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+</script>
+
+
+<script>
+async function carregarPlanoContasCadastro(valorSelecionado = '') {
+    const select = document.getElementById('plano_conta_cadastro');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/plano_contas/listar-select-despesas');
+        const lista = await response.json();
+
+        let options = '<option value="">Selecione</option>';
+
+        lista.forEach(item => {
+            const selected = String(item.id) === String(valorSelecionado) ? 'selected' : '';
+            options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+</script>
+
+
+<script>
+async function carregarCentrosCustoCadastro(valorSelecionado = '') {
+    const select = document.getElementById('centro_custo_cadastro');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/centros_custo/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Selecione</option>';
+
+        lista.forEach(item => {
+            const selected = String(item.id) === String(valorSelecionado) ? 'selected' : '';
+            options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+</script>
+
+
+<script>
+async function carregarFrequenciasCadastro(valorSelecionado = '') {
+    const select = document.getElementById('frequencia');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/frequencias/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Selecione</option>';
+
+        lista.forEach(item => {
+            const selected = String(item.id) === String(valorSelecionado) ? 'selected' : '';
+            options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+</script>
+
+<script>
+async function carregarSelectsModal(dados = {}) {
+    await carregarFornecedoresCadastro(dados.fornecedor || '');
+    await carregarFormasPagamentoCadastro(dados.forma_pagamento || '');
+    await carregarPlanoContasCadastro(dados.plano_conta || '');
+    await carregarCentrosCustoCadastro(dados.centro_custo || '');
+    await carregarFrequenciasCadastro(dados.frequencia || '');
+}
+</script>
+
+
+
+<script>
+async function editarRegistro(dados) {
+    document.getElementById('id').value = dados.id || '';
+    document.getElementById('descricao').value = dados.descricao || '';
+    document.getElementById('data_lancamento').value = dados.data_lancamento || '';
+    document.getElementById('data_vencimento').value = dados.data_vencimento || '';
+    document.getElementById('data_pagamento').value = dados.data_pagamento || '';
+    document.getElementById('qtd_parcelas').value = dados.qtd_parcelas || 1;
+
+    document.getElementById('valor').value = formatarValorBR(dados.valor || 0);
+    document.getElementById('desconto').value = formatarValorBR(dados.desconto || 0);
+    document.getElementById('multa').value = formatarValorBR(dados.multa || 0);
+    document.getElementById('juros').value = formatarValorBR(dados.juros || 0);
+    document.getElementById('subtotal').value = formatarValorBR(dados.subtotal || 0);
+    document.getElementById('observacoes').value = dados.observacoes || '';
+
+    await carregarSelectsModal(dados);
+
+    const tituloModal = document.getElementById('tituloModal');
+    if (tituloModal) {
+        tituloModal.innerHTML = 'Editar Registro';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('modal'));
+    modal.show();
+}
+</script>
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formCadastro = document.getElementById("form");
+    const btnSalvar = document.getElementById("btnSalvar");
+
+    if (formCadastro) {
+        formCadastro.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(formCadastro);
+
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = 'Salvando...';
+            mostrarLoading("Salvando dados...");
+
+            try {
+                const response = await fetch("/" + referencia + "/salvar", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === "sucesso") {
+                    await mensagemSucesso(data.mensagem);
+
+                    const modalEl = document.getElementById("modal");
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) {
+                        modal.hide();
+                    }
+
+                    limparFormulario();
+                    listar();
+                } else {
+                    mensagemAviso(data.mensagem || "Não foi possível salvar o registro.");
+                }
+
+            } catch (error) {
+                fecharLoading();
+                mensagemErro("Erro ao salvar os dados.");
+            } finally {
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = 'Salvar Alterações';
+            }
+        });
+    }
+});
+</script>
+
+
+
+
+
+<script>
+function atualizarBotaoExcluirSelecionados() {
+    const checks = document.querySelectorAll('.check-item:checked');
+    const btn = document.getElementById('btnExcluirSelecionados');
+
+    if (!btn) return;
+
+    if (checks.length > 0) {
+        btn.classList.remove('d-none');
+        btn.innerHTML = `<i class="bi bi-trash me-1"></i> Excluir Selecionados (${checks.length})`;
+    } else {
+        btn.classList.add('d-none');
+        btn.innerHTML = `<i class="bi bi-trash me-1"></i> Excluir Selecionados`;
+    }
+}
+
+document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('check-item')) {
+        atualizarBotaoExcluirSelecionados();
+    }
+
+    if (e.target.id === 'checkTodos') {
+        const marcado = e.target.checked;
+        document.querySelectorAll('.check-item').forEach(check => {
+            check.checked = marcado;
+        });
+        atualizarBotaoExcluirSelecionados();
+    }
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnExcluirSelecionados = document.getElementById('btnExcluirSelecionados');
+
+    if (btnExcluirSelecionados) {
+        btnExcluirSelecionados.addEventListener('click', async function () {
+            const selecionados = Array.from(document.querySelectorAll('.check-item:checked'))
+                .map(item => item.value);
+
+            if (!selecionados.length) {
+                mensagemAviso('Selecione pelo menos um registro.');
+                return;
+            }
+
+            const confirmacao = await confirmarAcao({
+                titulo: 'Excluir registros selecionados?',
+                texto: `Quantidade selecionada: ${selecionados.length}`,
+                textoConfirmar: 'Sim, excluir',
+                textoCancelar: 'Cancelar'
+            });
+
+            if (!confirmacao.isConfirmed) return;
+
+            mostrarLoading('Excluindo registros selecionados...');
+
+            try {
+                const response = await fetch('/'+referencia+'/excluir-lote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ids: selecionados
+                    })
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === 'sucesso') {
+                    await mensagemSucesso(data.mensagem);
+                    await listar();
+                    const checkTodos = document.getElementById('checkTodos');
+                    if (checkTodos) checkTodos.checked = false;
+                    atualizarBotaoExcluirSelecionados();
+                } else {
+                    mensagemAviso(data.mensagem || 'Não foi possível excluir os registros.');
+                }
+
+            } catch (error) {
+                fecharLoading();
+                mensagemErro('Erro ao excluir os registros selecionados.');
+            }
+        });
+    }
+});
+</script>
+
+
+
+<script>
+async function excluirRegistro(id, nome) {
+    const confirmacao = await confirmarAcao({
+        titulo: 'Excluir registro?',
+        texto: `Registro: ${nome}`,
+        textoConfirmar: 'Sim, excluir',
+        textoCancelar: 'Cancelar'
+    });
+
+    if (!confirmacao.isConfirmed) {
+        return;
+    }
+
+    mostrarLoading('Excluindo ...');
+
+    try {
+        const response = await fetch('/'+referencia+'/excluir', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: id
+            })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            await mensagemSucesso(data.mensagem);
+            listar();
+        } else {
+            mensagemAviso(data.mensagem || 'Não foi possível excluir o registro.');
+        }
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro('Erro ao excluir o registro.');
+    }
+}
+</script>
+
+
+
+
+<script>
+async function carregarFormasPagamentoBaixa(valorSelecionado = '') {
+    const select = document.getElementById('forma_pagamento_baixa');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/formas_pagamento/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Selecione</option>';
+
+        lista.forEach(item => {
+            const selected = String(item.id) === String(valorSelecionado) ? 'selected' : '';
+            options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+</script>
+
+
+<script>
+function calcularSubtotalBaixa() {
+    const valor = valorParaNumero(document.getElementById('valor_baixa').value);
+    const desconto = valorParaNumero(document.getElementById('desconto_baixa').value);
+    const multa = valorParaNumero(document.getElementById('multa_baixa').value);
+    const juros = valorParaNumero(document.getElementById('juros_baixa').value);
+
+    const subtotal = valor - desconto + multa + juros;
+    document.getElementById('subtotal_baixa').value = formatarValorBR(subtotal);
+}
+</script>
+
+<script>
+function limparFormularioBaixa() {
+    document.getElementById('formBaixa').reset();
+    document.getElementById('id_baixa').value = '';
+    document.getElementById('descricao_baixa').value = '';
+    document.getElementById('valor_baixa').value = '0,00';
+    document.getElementById('desconto_baixa').value = '0,00';
+    document.getElementById('multa_baixa').value = '0,00';
+    document.getElementById('juros_baixa').value = '0,00';
+    document.getElementById('subtotal_baixa').value = '0,00';
+    document.getElementById('observacoes_baixa').value = '';
+
+    aplicarDataHoje('data_pagamento_baixa');
+}
+</script>
+
+
+
+<script>
+async function abrirBaixa(dados) {
+    limparFormularioBaixa();
+
+    document.getElementById('id_baixa').value = dados.id || '';
+    document.getElementById('descricao_baixa').value = dados.descricao || '';
+    document.getElementById('valor_baixa').value = formatarValorBR(Number(dados.valor || 0));
+    document.getElementById('desconto_baixa').value = formatarValorBR(Number(dados.desconto || 0));
+    document.getElementById('multa_baixa').value = formatarValorBR(Number(dados.multa || 0));
+    document.getElementById('juros_baixa').value = formatarValorBR(Number(dados.juros || 0));
+    document.getElementById('observacoes_baixa').value = dados.observacoes || '';
+
+    aplicarDataHoje('data_pagamento_baixa');
+
+    await carregarFormasPagamentoBaixa(dados.forma_pagamento || '');
+
+    calcularSubtotalBaixa();
+
+    const modal = new bootstrap.Modal(document.getElementById('modalBaixa'));
+    modal.show();
+}
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalBaixaEl = document.getElementById("modalBaixa");
+
+    if (modalBaixaEl) {
+        modalBaixaEl.addEventListener("hidden.bs.modal", function () {
+            limparFormularioBaixa();
+        });
+    }
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formBaixa = document.getElementById("formBaixa");
+    const btnSalvarBaixa = document.getElementById("btnSalvarBaixa");
+
+    if (formBaixa) {
+        formBaixa.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(formBaixa);
+
+            btnSalvarBaixa.disabled = true;
+            btnSalvarBaixa.innerHTML = 'Baixando...';
+            mostrarLoading("Processando baixa da conta...");
+
+            try {
+                const response = await fetch('/' + referencia + '/baixar', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                fecharLoading();                
+                if (data.status === 'sucesso') {
+                    
+                    await mensagemSucesso(data.mensagem);
+
+                    const modalEl = document.getElementById('modalBaixa');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) {
+                        modal.hide();
+                    }
+
+                    limparFormularioBaixa();
+                    listar();
+                } else {
+                    console.log(data);
+                    mensagemAviso((data.mensagem || 'Não foi possível baixar a conta.') + '\n' + (data.erro || ''));
+                }
+
+            } catch (error) {
+                console.error(error);
+                fecharLoading();
+                mensagemErro('Erro ao processar a baixa da conta.');
+            } finally {
+                btnSalvarBaixa.disabled = false;
+                btnSalvarBaixa.innerHTML = 'Confirmar Baixa';
+            }
+        });
+    }
+});
+</script>
+
+
+
+
+
+<script>
+async function cancelarBaixa(id, descricao) {
+    const confirmacao = await confirmarAcao({
+        titulo: 'Cancelar baixa?',
+        texto: `Conta: ${descricao}`,
+        textoConfirmar: 'Sim, cancelar',
+        textoCancelar: 'Fechar'
+    });
+
+    if (!confirmacao.isConfirmed) {
+        return;
+    }
+
+    mostrarLoading('Cancelando baixa...');
+
+    try {
+        const response = await fetch('/' + referencia + '/cancelar-baixa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: id
+            })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            await mensagemSucesso(data.mensagem);
+            listar();
+        } else {
+            mensagemAviso(data.mensagem || 'Não foi possível cancelar a baixa.');
+        }
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro('Erro ao cancelar a baixa.');
+    }
+}
+</script>
+
+
+
+
+<script>
+async function carregarFrequenciasParcelar(valorSelecionado = '') {
+    const select = document.getElementById('frequencia_parcelar');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/frequencias/listar-select');
+        const lista = await response.json();
+
+        let options = '<option value="">Selecione</option>';
+
+        lista.forEach(item => {
+            const selected = String(item.id) === String(valorSelecionado) ? 'selected' : '';
+            options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+        });
+
+        select.innerHTML = options;
+
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+}
+</script>
+
+
+<script>
+function calcularValorParcelaParcelar() {
+    const subtotal = valorParaNumero(document.getElementById('subtotal_parcelar').value);
+    const qtdParcelas = parseInt(document.getElementById('qtd_parcelas_parcelar').value || 1);
+
+    if (qtdParcelas > 0) {
+        const valorParcela = subtotal / qtdParcelas;
+        document.getElementById('valor_parcela_parcelar').value = formatarValorBR(valorParcela);
+    } else {
+        document.getElementById('valor_parcela_parcelar').value = formatarValorBR(0);
+    }
+}
+</script>
+
+<script>
+function limparFormularioParcelar() {
+    document.getElementById('formParcelar').reset();
+    document.getElementById('id_parcelar').value = '';
+    document.getElementById('descricao_parcelar').value = '';
+    document.getElementById('valor_parcelar').value = '0,00';
+    document.getElementById('subtotal_parcelar').value = '0,00';
+    document.getElementById('qtd_parcelas_parcelar').value = '2';
+    document.getElementById('valor_parcela_parcelar').value = '0,00';
+    document.getElementById('observacoes_parcelar').value = '';
+}
+</script>
+
+
+<script>
+async function abrirParcelamento(dados) {
+    limparFormularioParcelar();
+
+    document.getElementById('id_parcelar').value = dados.id || '';
+    document.getElementById('descricao_parcelar').value = dados.descricao || '';
+    document.getElementById('valor_parcelar').value = formatarValorBR(dados.valor || 0);
+    document.getElementById('subtotal_parcelar').value = formatarValorBR(dados.subtotal || 0);
+    document.getElementById('observacoes_parcelar').value = dados.observacoes || '';
+
+    await carregarFrequenciasParcelar(dados.frequencia || '');
+
+    calcularValorParcelaParcelar();
+
+    const modal = new bootstrap.Modal(document.getElementById('modalParcelar'));
+    modal.show();
+}
+</script>
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const qtdParcelas = document.getElementById('qtd_parcelas_parcelar');
+    const modalParcelarEl = document.getElementById('modalParcelar');
+
+    if (qtdParcelas) {
+        qtdParcelas.addEventListener('input', calcularValorParcelaParcelar);
+    }
+
+    if (modalParcelarEl) {
+        modalParcelarEl.addEventListener('hidden.bs.modal', function () {
+            limparFormularioParcelar();
+        });
+    }
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formParcelar = document.getElementById("formParcelar");
+    const btnSalvarParcelamento = document.getElementById("btnSalvarParcelamento");
+
+    if (formParcelar) {
+        formParcelar.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(formParcelar);
+
+            btnSalvarBaixa.disabled = true;
+            btnSalvarBaixa.innerHTML = 'Parcelando...';
+            mostrarLoading("Processando parcelamento da conta...");
+
+            try {
+                const response = await fetch('/' + referencia + '/parcelar', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                fecharLoading();                
+                if (data.status === 'sucesso') {
+                    
+                    await mensagemSucesso(data.mensagem);
+
+                    const modalEl = document.getElementById('modalParcelar');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) {
+                        modal.hide();
+                    }
+
+                    limparFormularioBaixa();
+                    listar();
+                } else {
+                    console.log(data);
+                    mensagemAviso((data.mensagem || 'Não foi possível parcelar a conta.') + '\n' + (data.erro || ''));
+                }
+
+            } catch (error) {
+                console.error(error);
+                fecharLoading();
+                mensagemErro('Erro ao processar o parcelamento da conta.');
+            } finally {
+                btnSalvarBaixa.disabled = false;
+                btnSalvarBaixa.innerHTML = 'Confirmar Parcelamento';
+            }
+        });
+    }
+});
+</script>
+
+
+
+
+
+
+
+<script>
+function limparFormularioArquivo() {
+    document.getElementById('formArquivo').reset();
+    document.getElementById('arquivo_id_registro').value = '';
+    document.getElementById('arquivo_tipo').value = 'despesa';
+    document.getElementById('arquivo_tabela').value = 'despesas';
+    document.getElementById('arquivo_descricao_registro').textContent = '';
+    document.getElementById('arquivo_descricao').value = '';
+    document.getElementById('previewArquivo').src = '/static/img/arquivos/sem-foto.png';
+    document.getElementById('nomeArquivoPreview').textContent = 'Nenhum arquivo selecionado';
+    document.getElementById('listaArquivos').innerHTML = `
+        <div class="col-12 text-muted small">
+            Nenhum arquivo carregado.
+        </div>
+    `;
+}
+</script>
+
+<script>
+function abrirArquivo(dados) {
+    limparFormularioArquivo();
+
+    document.getElementById('arquivo_id_registro').value = dados.id || '';
+    document.getElementById('arquivo_tipo').value = 'despesa';
+    document.getElementById('arquivo_tabela').value = 'despesas';
+    document.getElementById('arquivo_descricao_registro').textContent = dados.descricao || '';
+
+    listarArquivosRegistro();
+
+    const modal = new bootstrap.Modal(document.getElementById('modalArquivo'));
+    modal.show();
+}
+</script>
+
+<script>
+function obterIconeArquivo(extensao) {
+    const mapa = {
+        '.pdf': '/static/img/arquivos/pdf.png',
+        '.rar': '/static/img/arquivos/rar.png',
+        '.zip': '/static/img/arquivos/rar.png',
+        '.7z': '/static/img/arquivos/rar.png',
+        '.doc': '/static/img/arquivos/word.png',
+        '.docx': '/static/img/arquivos/word.png',
+        '.xls': '/static/img/arquivos/excel.png',
+        '.xlsx': '/static/img/arquivos/excel.png',
+        '.csv': '/static/img/arquivos/excel.png',
+        '.xml': '/static/img/arquivos/xml.png',
+        '.txt': '/static/img/arquivos/xml.png'
+    };
+
+    return mapa[extensao] || '/static/img/arquivos/sem-foto.png';
+}
+</script>
+
+<script>
+function atualizarPreviewArquivo(input) {
+    const preview = document.getElementById('previewArquivo');
+    const nomeArquivo = document.getElementById('nomeArquivoPreview');
+
+    if (!input || !input.files || !input.files.length) {
+        preview.src = '/static/img/arquivos/sem-foto.png';
+        nomeArquivo.textContent = 'Nenhum arquivo selecionado';
+        return;
+    }
+
+    const arquivo = input.files[0];
+    const nome = arquivo.name || '';
+    const nomeLower = nome.toLowerCase();
+    const extensao = nomeLower.includes('.') ? nomeLower.substring(nomeLower.lastIndexOf('.')) : '';
+
+    nomeArquivo.textContent = nome;
+
+    const extensoesImagem = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+    if (extensoesImagem.includes(extensao)) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(arquivo);
+    } else {
+        preview.src = obterIconeArquivo(extensao);
+    }
+}
+</script>
+
+<script>
+function montarCardArquivo(item) {
+    const nomeArquivo = item.arquivo || '';
+    const nomeLower = nomeArquivo.toLowerCase();
+    const extensao = nomeLower.includes('.') ? nomeLower.substring(nomeLower.lastIndexOf('.')) : '';
+    const extensoesImagem = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+    let preview = '/static/img/arquivos/sem-foto.png';
+
+    if (extensoesImagem.includes(extensao)) {
+        preview = '/static/img/arquivos/' + nomeArquivo;
+    } else {
+        preview = obterIconeArquivo(extensao);
+    }
+
+    return `
+        <div class="col-md-4">
+            <div class="border rounded-3 p-2 h-100">
+                <div class="text-center mb-2">
+                    <img src="${preview}" alt="Arquivo" class="img-fluid rounded" style="max-height: 90px; object-fit: contain;">
+                </div>
+
+                <div class="small fw-semibold text-truncate" title="${item.descricao || nomeArquivo}">
+                    ${item.descricao || nomeArquivo}
+                </div>
+
+                <div class="small text-muted text-truncate" title="${nomeArquivo}">
+                    ${nomeArquivo}
+                </div>
+
+                <div class="mt-2 d-flex gap-2">
+                    <a href="/static/img/arquivos/${nomeArquivo}" target="_blank" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-eye"></i>
+                    </a>
+
+                    <button type="button" class="btn btn-sm btn-danger w-100" onclick="excluirArquivo(${item.id}, '${(item.descricao || nomeArquivo).replace(/'/g, "\\'")}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+</script>
+
+<script>
+async function listarArquivosRegistro() {
+    const lista = document.getElementById('listaArquivos');
+    const idRegistro = document.getElementById('arquivo_id_registro')?.value || '';
+    const tabela = document.getElementById('arquivo_tabela')?.value || '';
+    const tipo = document.getElementById('arquivo_tipo')?.value || '';
+
+    if (!lista || !idRegistro || !tabela || !tipo) {
+        console.log({ lista, idRegistro, tabela, tipo });
+        return;
+    }
+
+    lista.innerHTML = `
+        <div class="col-12 text-muted small">
+            Carregando arquivos...
+        </div>
+    `;
+
+    try {
+        const params = new URLSearchParams({
+            id_registro: idRegistro,
+            tabela: tabela,
+            tipo: tipo
+        });
+
+        const response = await fetch('/arquivos/listar?' + params.toString());
+        const texto = await response.text();
+
+        console.log('STATUS LISTAR ARQUIVOS:', response.status);
+        console.log('RESPOSTA LISTAR ARQUIVOS:', texto);
+
+        let data = [];
+        try {
+            data = JSON.parse(texto);
+        } catch (e) {
+            lista.innerHTML = `
+                <div class="col-12 text-danger small">
+                    A rota retornou uma resposta inválida.
+                </div>
+            `;
+            return;
+        }
+
+        if (!Array.isArray(data)) {
+            console.log(data);
+            lista.innerHTML = `
+                <div class="col-12 text-danger small">
+                    ${data.mensagem || 'Erro ao listar arquivos.'}
+                </div>
+            `;
+            return;
+        }
+
+        if (!data.length) {
+            lista.innerHTML = `
+                <div class="col-12 text-muted small">
+                    Nenhum arquivo vinculado.
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        data.forEach(item => {
+            html += montarCardArquivo(item);
+        });
+
+        lista.innerHTML = html;
+
+    } catch (error) {
+        console.error(error);
+        lista.innerHTML = `
+            <div class="col-12 text-danger small">
+                Erro ao carregar arquivos.
+            </div>
+        `;
+    }
+}
+</script>
+
+<script>
+async function excluirArquivo(id, descricao) {
+    const confirmacao = await confirmarAcao({
+        titulo: 'Excluir arquivo?',
+        texto: `Arquivo: ${descricao}`,
+        textoConfirmar: 'Sim, excluir',
+        textoCancelar: 'Cancelar'
+    });
+
+    if (!confirmacao.isConfirmed) {
+        return;
+    }
+
+    mostrarLoading('Excluindo arquivo...');
+
+    try {
+        const response = await fetch('/arquivos/excluir', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ id: id })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            await mensagemSucesso(data.mensagem);
+            listarArquivosRegistro();
+        } else {
+            console.log(data);
+            mensagemAviso((data.mensagem || 'Não foi possível excluir o arquivo.') + '\n' + (data.erro || ''));
+        }
+
+    } catch (error) {
+        console.error(error);
+        fecharLoading();
+        mensagemErro('Erro ao excluir o arquivo.');
+    }
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modalArquivoEl = document.getElementById("modalArquivo");
+    const inputArquivo = document.getElementById("arquivo_file");
+
+    if (modalArquivoEl) {
+        modalArquivoEl.addEventListener("hidden.bs.modal", function () {
+            limparFormularioArquivo();
+        });
+    }
+
+    if (inputArquivo) {
+        inputArquivo.addEventListener("change", function () {
+            atualizarPreviewArquivo(this);
+        });
+    }
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formArquivo = document.getElementById("formArquivo");
+    const btnSalvarArquivo = document.getElementById("btnSalvarArquivo");
+
+    if (formArquivo) {
+        formArquivo.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(formArquivo);
+
+            btnSalvarArquivo.disabled = true;
+            btnSalvarArquivo.innerHTML = 'Enviando...';
+            mostrarLoading("Enviando arquivo...");
+
+            try {
+                const response = await fetch('/arquivos/salvar', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === 'sucesso') {
+                    await mensagemSucesso(data.mensagem);
+                    document.getElementById('arquivo_descricao').value = '';
+                    document.getElementById('arquivo_file').value = '';
+                    document.getElementById('previewArquivo').src = '/static/img/arquivos/sem-foto.png';
+                    document.getElementById('nomeArquivoPreview').textContent = 'Nenhum arquivo selecionado';
+                    listarArquivosRegistro();
+                } else {
+                    console.log(data);
+                    mensagemAviso((data.mensagem || 'Não foi possível enviar o arquivo.') + '\n' + (data.erro || ''));
+                }
+
+            } catch (error) {
+                console.error(error);
+                fecharLoading();
+                mensagemErro('Erro ao enviar o arquivo.');
+            } finally {
+                btnSalvarArquivo.disabled = false;
+                btnSalvarArquivo.innerHTML = 'Enviar Arquivo';
+            }
+        });
+    }
+});
+</script>
+
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const btnNovo = document.getElementById("btnNovo");
+    const modalEl = document.getElementById("modal");
+
+    if (btnNovo) {
+        btnNovo.addEventListener("click", async function () {
+            limparFormulario();            
+            aplicarDataHoje('data_lancamento');
+            aplicarDataHoje('data_vencimento');
+            await carregarSelectsModal();
+            
+        });
+    }
+
+    if (modalEl) {
+        modalEl.addEventListener("hidden.bs.modal", function () {
+            limparFormulario();            
+            aplicarDataHoje('data_lancamento');
+            aplicarDataHoje('data_vencimento');
+        });
+    }
+});
+</script>
+
+
+
+
+
+
+{% endblock %}

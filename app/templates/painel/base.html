@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ config_sistema.nome_sistema }}{% endblock %}</title>
+
+    <link rel="icon" href="{{ url_for('static', filename='img/{{ config_sistema.icone }}') }}" type="image/webp">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/' ~ config_sistema.icone ) }}">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='datatable/css/dataTables.bootstrap5.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='datatable/css/responsive.bootstrap5.min.css') }}">
+
+    <script src="{{ url_for('static', filename='datatable/js/jquery.dataTables.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='datatable/js/dataTables.bootstrap5.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='datatable/dataTables.responsive.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='datatable/responsive.bootstrap5.min.js') }}"></script>
+        
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+    <style>
+        :root {
+            --cor-primaria: {{ config_sistema.cor_primaria }};
+            --cor-secundaria: {{ config_sistema.cor_secundaria }};
+        }
+    </style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/painel.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+
+    <div class="app-layout">
+
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-top">
+                <a href="{{ url_for('painel.index') }}" class="brand">
+                    <img src="{{ url_for('static', filename='img/' ~ config_sistema.logo ) }}" alt="Logo do sistema">
+                </a>
+
+                <button class="btn-close-sidebar d-lg-none" id="btnCloseSidebar" type="button">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+           <nav class="sidebar-menu">
+                {% for item in menu_sistema %}
+
+                    {% if item.submenu and item.submenu|length > 0 %}
+                        <div class="menu-group">
+                            <button type="button"
+                                    class="menu-link menu-toggle {% if request.endpoint in item.submenu | map(attribute='rota') | list %}open active{% endif %}"
+                                    data-menu-toggle="submenu-{{ loop.index }}">
+                                <span class="menu-left">
+                                    <i class="{{ item.icone }}"></i>
+                                    <span>{{ item.titulo }}</span>
+                                </span>
+                                <i class="bi bi-chevron-down menu-arrow"></i>
+                            </button>
+
+                            <div class="submenu {% if request.endpoint in item.submenu | map(attribute='rota') | list %}show{% endif %}"
+                                id="submenu-{{ loop.index }}">
+                                {% for sub in item.submenu %}
+
+                                    {% if sub.modal %}
+                                        <a href="javascript:void(0)"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="{{ sub.modal }}"
+                                        class="submenu-link">
+                                            <i class="{{ sub.icone }}"></i>
+                                            <span>{{ sub.titulo }}</span>
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for(sub.rota) if sub.rota else '#' }}"
+                                        class="submenu-link {% if request.endpoint == sub.rota %}active{% endif %}">
+                                            <i class="{{ sub.icone }}"></i>
+                                            <span>{{ sub.titulo }}</span>
+                                        </a>
+                                    {% endif %}
+
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% else %}
+
+                        {% if item.modal %}
+                            <a href="javascript:void(0)"
+                            data-bs-toggle="modal"
+                            data-bs-target="{{ item.modal }}"
+                            class="menu-link">
+                                <i class="{{ item.icone }}"></i>
+                                <span>{{ item.titulo }}</span>
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for(item.rota) if item.rota else '#' }}"
+                            class="menu-link {% if request.endpoint == item.rota %}active{% endif %}">
+                                <i class="{{ item.icone }}"></i>
+                                <span>{{ item.titulo }}</span>
+                            </a>
+                        {% endif %}
+
+                    {% endif %}
+
+                {% endfor %}
+            </nav>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <div class="main-wrapper">
+
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="btn-menu" id="btnOpenSidebar" type="button">
+                        <i class="bi bi-list"></i>
+                    </button>
+
+                    <div class="topbar-title">
+                        {% block page_title %}{% endblock %}
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+
+                    <!-- NOTIFICAÇÕES RECEBIMENTOS -->
+                    <div class="dropdown notification-dropdown me-2">
+                        <button class="btn btn-notification position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Recebimentos vencidos">
+                            <i class="bi bi-cash-coin"></i>
+                            {% if notificacoes_recebimentos_total and notificacoes_recebimentos_total > 0 %}
+                                <span class="notification-badge bg-success">{{ notificacoes_recebimentos_total }}</span>
+                            {% endif %}
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end notification-menu">
+                            <div class="notification-header">
+                                <strong>Recebimentos Vencidos</strong>
+                                <small>{{ notificacoes_recebimentos_total or 0 }} conta(s)</small>
+                            </div>
+
+                            <div class="notification-body">
+                                {% if notificacoes_recebimentos %}
+                                    {% for item in notificacoes_recebimentos %}
+                                        <div class="notification-item">
+                                            <div class="notification-title">{{ item.descricao }}</div>
+                                            <div class="notification-meta">
+                                                <span>{{ item.cliente_nome or 'Sem cliente' }}</span>
+                                            </div>
+                                            <div class="notification-meta">
+                                                <span>Venc.: {{ item.data_vencimento.strftime('%d/%m/%Y') if item.data_vencimento else '-' }}</span>
+                                                <span>R$ {{ '{:,.2f}'.format(item.subtotal or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="notification-empty">Nenhum recebimento vencido.</div>
+                                {% endif %}
+
+                                <div class="notification-footer">
+                                    <a href="{{ url_for('recebimentos.index') }}" class="btn btn-sm btn-outline-success w-100">
+                                        <i class="bi bi-arrow-right-circle me-1"></i> Ir para Recebimentos
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NOTIFICAÇÕES DESPESAS -->
+                    <div class="dropdown notification-dropdown me-3">
+                        <button class="btn btn-notification position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Despesas vencidas">
+                            <i class="bi bi-wallet2"></i>
+                            {% if notificacoes_despesas_total and notificacoes_despesas_total > 0 %}
+                                <span class="notification-badge bg-danger">{{ notificacoes_despesas_total }}</span>
+                            {% endif %}
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end notification-menu">
+                            <div class="notification-header">
+                                <strong>Despesas Vencidas</strong>
+                                <small>{{ notificacoes_despesas_total or 0 }} conta(s)</small>
+                            </div>
+
+                            <div class="notification-body">
+                                {% if notificacoes_despesas %}
+                                    {% for item in notificacoes_despesas %}
+                                        <div class="notification-item">
+                                            <div class="notification-title">{{ item.descricao }}</div>
+                                            <div class="notification-meta">
+                                                <span>{{ item.fornecedor_nome or 'Sem fornecedor' }}</span>
+                                            </div>
+                                            <div class="notification-meta">
+                                                <span>Venc.: {{ item.data_vencimento.strftime('%d/%m/%Y') if item.data_vencimento else '-' }}</span>
+                                                <span>R$ {{ '{:,.2f}'.format(item.subtotal or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="notification-empty">Nenhuma despesa vencida.</div>
+                                {% endif %}
+
+                                <div class="notification-footer">
+                                    <a href="{{ url_for('despesas.index') }}" class="btn btn-sm btn-outline-danger w-100">
+                                        <i class="bi bi-arrow-right-circle me-1"></i> Ir para Despesas
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- USUÁRIO -->
+                    <div class="dropdown user-dropdown">
+                        <button class="btn user-area dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="user-photo">
+                                {% if foto_usuario %}
+                                    <img src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" alt="Foto do usuário">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename='img/sem_foto.webp') }}" alt="Foto padrão">
+                                {% endif %}
+                            </div>
+
+                            <div class="user-info d-none d-md-flex">
+                                <span class="user-name">{{ nome }}</span>
+                                <small class="user-level">{{ nivel }}</small>
+                            </div>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end user-menu">
+                            <li class="user-menu-header">
+                                <div class="user-photo large">
+                                    {% if foto_usuario %}
+                                        <img src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" alt="Foto do usuário">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='img/usuarios/sem_foto.webp') }}" alt="Foto padrão">
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="user-name">{{ nome }}</div>
+                                    <small class="user-level">{{ nivel }}</small>
+                                </div>
+                            </li>
+
+                            <li><hr class="dropdown-divider"></li>
+
+                            <li>
+                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalPerfil">
+                                    <i class="bi bi-person-gear"></i> Editar Perfil
+                                </a>
+                            </li>
+                            {% if pode_ver_configuracoes %}
+                            <li>
+                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalConfiguracoes">
+                                    <i class="bi bi-gear"></i> Configurações
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            <li><hr class="dropdown-divider"></li>
+
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ url_for('painel.logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i> Sair
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+            </header>
+
+            <main class="content-area">
+                {% block content %}{% endblock %}
+            </main>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const btnOpen = document.getElementById('btnOpenSidebar');
+        const btnClose = document.getElementById('btnCloseSidebar');
+
+        btnOpen.addEventListener('click', function () {
+            sidebar.classList.add('show');
+            overlay.classList.add('show');
+        });
+
+        btnClose.addEventListener('click', function () {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        });
+
+        overlay.addEventListener('click', function () {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ url_for('static', filename='js/mascaras.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/mensagens.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/funcoes.js') }}"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    {% block scripts %}{% endblock %}
+
+</body>
+</html>
+
+
+
+
+<!-- Modal Editar Perfil -->
+<div class="modal fade" id="modalPerfil" tabindex="-1" aria-labelledby="modalPerfilLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+
+           <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalPerfilLabel">
+                    <i class="bi bi-person-gear me-2"></i> Editar Perfil
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="formPerfil" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+
+                    <!-- FOTO -->
+                    <div class="text-center mb-4">
+                        <div class="mb-2 perfil-foto-area" title="Trocar Foto">
+                            <img 
+                                src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" 
+                                id="previewFotoPerfil"
+                                alt="Foto do usuário"
+                                class="foto-perfil-preview"
+                            >
+                        </div>
+
+                        <label for="fotoPerfil" class="form-label">Foto do Perfil</label>
+                        <input type="file" class="form-control" id="fotoPerfil" name="foto" accept="image/*">
+                    </div>
+
+                    <!-- DADOS PESSOAIS -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3">Dados Pessoais</h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="nomePerfil" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nomePerfil" name="nome" value="{{ usuario.nome or '' }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="telefonePerfil" class="form-label">Telefone</label>
+                                <input type="text" class="form-control" id="telefonePerfil" name="telefone" value="{{ usuario.telefone or '' }}">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="emailPerfil" class="form-label">E-mail</label>
+                                <input type="email" class="form-control" id="emailPerfil" name="email" value="{{ usuario.email or '' }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="cpfPerfil" class="form-label">CPF</label>
+                                <input type="text" class="form-control" id="cpfPerfil" name="cpf" value="{{ usuario.cpf or '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ENDEREÇO -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3">Endereço</h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="cepPerfil" class="form-label">CEP</label>
+                                <input type="text" class="form-control" id="cepPerfil" name="cep" value="{{ usuario.cep or '' }}">
+                            </div>
+
+                            <div class="col-md-8">
+                                <label for="enderecoPerfil" class="form-label">Endereço</label>
+                                <input type="text" class="form-control" id="enderecoPerfil" name="endereco" value="{{ usuario.endereco or '' }}">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="numeroPerfil" class="form-label">Número</label>
+                                <input type="text" class="form-control" id="numeroPerfil" name="numero" value="{{ usuario.numero or '' }}">
+                            </div>
+
+                            <div class="col-md-9">
+                                <label for="complementoPerfil" class="form-label">Complemento</label>
+                                <input type="text" class="form-control" id="complementoPerfil" name="complemento" value="{{ usuario.complemento or '' }}">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="bairroPerfil" class="form-label">Bairro</label>
+                                <input type="text" class="form-control" id="bairroPerfil" name="bairro" value="{{ usuario.bairro or '' }}">
+                            </div>
+
+                            <div class="col-md-5">
+                                <label for="cidadePerfil" class="form-label">Cidade</label>
+                                <input type="text" class="form-control" id="cidadePerfil" name="cidade" value="{{ usuario.cidade or '' }}">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="estadoPerfil" class="form-label">Estado</label>
+                                <select class="form-select" name="estado">
+                                    <option value="">Selecione</option>
+
+                                    <option value="AC" {% if usuario.estado == 'AC' %}selected{% endif %}>AC</option>
+                                    <option value="AL" {% if usuario.estado == 'AL' %}selected{% endif %}>AL</option>
+                                    <option value="AP" {% if usuario.estado == 'AP' %}selected{% endif %}>AP</option>
+                                    <option value="AM" {% if usuario.estado == 'AM' %}selected{% endif %}>AM</option>
+                                    <option value="BA" {% if usuario.estado == 'BA' %}selected{% endif %}>BA</option>
+                                    <option value="CE" {% if usuario.estado == 'CE' %}selected{% endif %}>CE</option>
+                                    <option value="DF" {% if usuario.estado == 'DF' %}selected{% endif %}>DF</option>
+                                    <option value="ES" {% if usuario.estado == 'ES' %}selected{% endif %}>ES</option>
+                                    <option value="GO" {% if usuario.estado == 'GO' %}selected{% endif %}>GO</option>
+                                    <option value="MA" {% if usuario.estado == 'MA' %}selected{% endif %}>MA</option>
+                                    <option value="MT" {% if usuario.estado == 'MT' %}selected{% endif %}>MT</option>
+                                    <option value="MS" {% if usuario.estado == 'MS' %}selected{% endif %}>MS</option>
+                                    <option value="MG" {% if usuario.estado == 'MG' %}selected{% endif %}>MG</option>
+                                    <option value="PA" {% if usuario.estado == 'PA' %}selected{% endif %}>PA</option>
+                                    <option value="PB" {% if usuario.estado == 'PB' %}selected{% endif %}>PB</option>
+                                    <option value="PR" {% if usuario.estado == 'PR' %}selected{% endif %}>PR</option>
+                                    <option value="PE" {% if usuario.estado == 'PE' %}selected{% endif %}>PE</option>
+                                    <option value="PI" {% if usuario.estado == 'PI' %}selected{% endif %}>PI</option>
+                                    <option value="RJ" {% if usuario.estado == 'RJ' %}selected{% endif %}>RJ</option>
+                                    <option value="RN" {% if usuario.estado == 'RN' %}selected{% endif %}>RN</option>
+                                    <option value="RS" {% if usuario.estado == 'RS' %}selected{% endif %}>RS</option>
+                                    <option value="RO" {% if usuario.estado == 'RO' %}selected{% endif %}>RO</option>
+                                    <option value="RR" {% if usuario.estado == 'RR' %}selected{% endif %}>RR</option>
+                                    <option value="SC" {% if usuario.estado == 'SC' %}selected{% endif %}>SC</option>
+                                    <option value="SP" {% if usuario.estado == 'SP' %}selected{% endif %}>SP</option>
+                                    <option value="SE" {% if usuario.estado == 'SE' %}selected{% endif %}>SE</option>
+                                    <option value="TO" {% if usuario.estado == 'TO' %}selected{% endif %}>TO</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEGURANÇA -->
+                    <div class="mb-2">
+                        <h6 class="border-bottom pb-2 mb-3">Segurança</h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="senhaPerfil" class="form-label">Nova Senha</label>
+                                <input type="password" class="form-control" id="senhaPerfil" name="senha">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="confirmarSenhaPerfil" class="form-label">Confirmar Nova Senha</label>
+                                <input type="password" class="form-control" id="confirmarSenhaPerfil" name="confirmar_senha">
+                            </div>
+
+                            
+                        </div>
+                    </div>
+
+
+                    <!-- ASSINATURA DIGITAL -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3">Assinatura Digital</h6>
+
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-5 text-center">
+                                <div class="assinatura-preview-box" id="assinaturaPreviewBox">
+                                    {% if usuario.assinatura %}
+                                        <img 
+                                            src="{{ url_for('static', filename='img/assinaturas/' ~ usuario.assinatura) }}" 
+                                            id="previewAssinaturaPerfil"
+                                            class="assinatura-preview-img"
+                                            alt="Assinatura do usuário"
+                                        >
+                                    {% else %}
+                                        <div class="assinatura-placeholder" id="previewAssinaturaPerfil">
+                                            <i class="bi bi-pen"></i>
+                                            <span>Sem assinatura cadastrada</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-7">
+                                <label class="form-label d-block">Assinatura do Usuário</label>
+
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnAbrirAssinatura">
+                                        <i class="bi bi-pencil-square me-1"></i> Abrir Assinatura Digital
+                                    </button>
+
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="btnLimparAssinatura">
+                                        <i class="bi bi-trash me-1"></i> Remover Assinatura
+                                    </button>
+                                </div>
+
+                                <small class="text-muted d-block mt-2">
+                                    Use o painel de assinatura para desenhar sua assinatura digital.
+                                </small>
+
+                                <!-- Campo oculto para receber a assinatura em base64 -->
+                                <input type="hidden" name="assinatura_base64" id="assinaturaBase64">
+                                <input type="hidden" name="remover_assinatura" id="removerAssinatura" value="não">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button id="btnSalvarPerfil" type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<!-- Modal Configurações -->
+<div class="modal fade" id="modalConfiguracoes" tabindex="-1" aria-labelledby="modalConfiguracoesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalConfiguracoesLabel">
+                    <i class="bi bi-gear me-2"></i> Configurações do Sistema
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <form id="formConfiguracoes" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+
+                    <!-- LOGO E ÍCONE -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3">Identidade Visual</h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-6 text-center">
+                                <div class="config-logo-area">
+                                    <img
+                                        src="{% if config_sistema.logo %}{{ url_for('static', filename='img/' ~ config_sistema.logo) }}{% else %}{{ url_for('static', filename='img/sem-foto.jpg') }}{% endif %}"
+                                        id="previewLogoSistema"
+                                        class="preview-logo-sistema"
+                                        alt="Logo do sistema"
+                                    >
+                                    <small class="d-block mt-2 text-muted">Clique na imagem para alterar a logo</small>
+                                </div>
+                                <input type="file" class="form-control d-none" id="logoSistema" name="logo" accept="image/*">
+                            </div>
+
+                            <div class="col-md-6 text-center">
+                                <div class="config-icone-area">
+                                    <img
+                                        src="{% if config_sistema.icone %}{{ url_for('static', filename='img/' ~ config_sistema.icone) }}{% else %}{{ url_for('static', filename='img/sem-foto.jpg') }}{% endif %}"
+                                        id="previewIconeSistema"
+                                        class="preview-icone-sistema"
+                                        alt="Ícone do sistema"
+                                    >
+                                    <small class="d-block mt-2 text-muted">Clique na imagem para alterar o ícone</small>
+                                </div>
+                                <input type="file" class="form-control d-none" id="iconeSistema" name="icone" accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DADOS DO SISTEMA -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3">Dados do Sistema</h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label for="nomeSistema" class="form-label">Nome do Sistema</label>
+                                <input type="text" class="form-control" id="nomeSistema" name="nome_sistema" value="{{ config_sistema.nome_sistema or '' }}">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="emailSistema" class="form-label">E-mail do Sistema</label>
+                                <input type="email" class="form-control" id="emailSistema" name="email_sistema" value="{{ config_sistema.email_sistema or '' }}">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="telefoneSistema" class="form-label">Telefone do Sistema</label>
+                                <input type="text" class="form-control" id="telefoneSistema" name="telefone" value="{{ config_sistema.telefone_sistema or '' }}">
+                            </div>
+
+                            <div class="col-md-12">
+                                <label for="enderecoSistema" class="form-label">Endereço do Sistema</label>
+                                <input type="text" class="form-control" id="enderecoSistema" name="endereco_sistema" value="{{ config_sistema.endereco_sistema or '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SMTP -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3 d-flex justify-content-between align-items-center">
+                            <span>Configurações de E-mail / SMTP</span>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnTestarEmail">
+                                <i class="bi bi-envelope-check me-1"></i> Testar E-mail
+                            </button>
+                        </h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="smtpHost" class="form-label">Host SMTP</label>
+                                <input type="text" class="form-control" id="smtpHost" name="smtp_host" value="{{ config_sistema.smtp_host or '' }}" placeholder="smtp.seudominio.com.br" autocomplete="off">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="smtpPorta" class="form-label">Porta SMTP</label>
+                                <input type="number" class="form-control" id="smtpPorta" name="smtp_porta" value="{{ config_sistema.smtp_porta or '' }}" placeholder="587" autocomplete="off">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="smtpSeguranca" class="form-label">Segurança</label>
+                                <select class="form-select" id="smtpSeguranca" name="smtp_seguranca" autocomplete="off">
+                                    <option value="">Selecione</option>
+                                    <option value="tls" {% if config_sistema.smtp_seguranca == 'tls' %}selected{% endif %}>TLS</option>
+                                    <option value="ssl" {% if config_sistema.smtp_seguranca == 'ssl' %}selected{% endif %}>SSL</option>
+                                    <option value="nenhuma" {% if config_sistema.smtp_seguranca == 'nenhuma' %}selected{% endif %}>Nenhuma</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="smtpSenha" class="form-label">Senha SMTP</label>
+                                <input
+                                    type="password"
+                                    class="form-control"
+                                    id="smtpSenha"
+                                    name="smtp_senha"
+                                    value=""
+                                    placeholder="Nova senha"
+                                    autocomplete="new-password"
+                                    data-lpignore="true"
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <!-- WHATSAPP API -->
+                        <div class="mb-3">
+                            <h6 class="border-bottom pb-2 mb-3 d-flex justify-content-between align-items-center">
+                                <span>Integração WhatsApp</span>
+                                <button type="button" class="btn btn-outline-success btn-sm" id="btnTestarWhatsapp">
+                                    <i class="bi bi-send-check me-1"></i> Testar Disparo
+                                </button>
+                            </h6>
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="api_whatsapp" class="form-label">API WhatsApp</label>
+                                    <select class="form-select" id="api_whatsapp" name="api_whatsapp">
+                                        <option value="">Nenhuma</option>
+                                        <option value="menuia" {% if config_sistema.api_whatsapp == 'menuia' %}selected{% endif %}>Menuia</option>
+                                        <option value="evolution" {% if config_sistema.api_whatsapp == 'evolution' %}selected{% endif %}>Evolution</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="instanciaWhatsapp" class="form-label">AuthKey / Instância / ID Number</label>
+                                    <input type="text" class="form-control" id="instanciaWhatsapp" name="instancia_whatsapp" value="{{ config_sistema.instancia_whatsapp or '' }}" placeholder="Nome da instância">
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="tokenWhatsapp" class="form-label">APP Key / Token WhatsApp</label>
+                                    <textarea class="form-control" id="tokenWhatsapp" name="token_whatsapp" rows="3" placeholder="Cole aqui o token da API">{{ config_sistema.token_whatsapp or '' }}</textarea>
+                                </div>
+
+                                <div class="col-md-12" id="boxUrlApiWhatsapp">
+                                    <label for="urlApi" class="form-label">URL da API Whatsapp</label>
+                                    <input type="text" class="form-control" id="urlApi" name="url_api" value="{{ config_sistema.url_api or '' }}" placeholder="https://seudominio.com/api">
+                                </div>
+                            </div>
+                        </div>
+
+                   <!-- IA -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3 d-flex justify-content-between align-items-center">
+                            <span>Integração com IA</span>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnTestarIa">
+                                <i class="bi bi-robot me-1"></i> Testar IA
+                            </button>
+                        </h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="apiIa" class="form-label">API de IA</label>
+                                <select class="form-select" id="api_ia" name="api_ia">
+                                    <option value="">Nenhuma</option>
+                                    <option value="chatgpt" {% if config_sistema.api_ia == 'chatgpt' %}selected{% endif %}>ChatGpt</option>
+                                    <option value="gemini" {% if config_sistema.api_ia == 'gemini' %}selected{% endif %}>Gemini</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-8">
+                                <label for="tokenIa" class="form-label">Token da IA</label>
+                                <input type="text" class="form-control" id="tokenIa" name="token_ia" value="{{ config_sistema.token_ia or '' }}" placeholder="Cole aqui a chave da API" autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DEMAIS CONFIGURAÇÕES -->
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2 mb-3">Demais Configurações</h6>
+
+                        <div class="row g-3">
+
+                             <div class="col-md-3">
+                                <label for="rel_html_pdf" class="form-label">Relatório Html / PDF</label>
+                                <select class="form-select" id="rel_html_pdf" name="rel_html_pdf">
+                                    <option value="pdf" {% if config_sistema.rel_html_pdf == 'pdf' %}selected{% endif %}>PDF</option>
+                                    <option value="html" {% if config_sistema.rel_html_pdf == 'html' %}selected{% endif %}>HTML</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="diasExcluirLogs" class="form-label">Dias para excluir logs</label>
+                                <input type="number" class="form-control" id="diasExcluirLogs" name="dias_excluir_logs" value="{{ config_sistema.dias_excluir_logs or '' }}" placeholder="Ex: 30">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Hora Alerta Contas Inicial</label>
+                                <input type="time" class="form-control" id="hora_inicial_alerta" name="hora_inicial_alerta" value="{{ config_sistema.hora_inicial_alerta or '' }}" placeholder="08:00">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Hora Alerta Contas Final</label>
+                                <input type="time" class="form-control" id="hora_final_alerta" name="hora_final_alerta" value="{{ config_sistema.hora_final_alerta or '' }}" placeholder="11:00">
+                            </div>
+
+
+                        </div>
+                    </div>
+
+
+
+
+                    <!-- =========================
+                        💳 DADOS PARA RECEBIMENTO
+                    ========================= -->
+                    <div class="mb-3">
+                        <h6 class="mb-3">Dados para Recebimento</h6>
+
+                        <div class="row g-3">
+
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo</label>
+                                <select class="form-select" name="tipo_dados_pagamento">
+                                    <option value="">Selecione</option>
+                                    <option value="pix" {{ 'selected' if config_sistema.tipo_dados_pagamento == 'pix' else '' }}>PIX</option>
+                                    <option value="conta" {{ 'selected' if config_sistema.tipo_dados_pagamento == 'conta' else '' }}>Conta Bancária</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-9">
+                                <label class="form-label">Dados para Pagamento</label>
+                                <textarea 
+                                    class="form-control" 
+                                    name="dados_pagamento" 
+                                    rows="3"
+                                    placeholder="Ex: Chave PIX: 31999999999&#10;ou&#10;Banco: Nubank&#10;Agência: 0001&#10;Conta: 123456-7">{{ config_sistema.dados_pagamento or '' }}</textarea>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label">Beneficiário</label>
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    name="beneficiario"
+                                    value="{{ config_sistema.beneficiario or '' }}"
+                                    placeholder="Ex: Hugo Cursos LTDA - CNPJ 00.000.000/0001-00">
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- CORES -->
+                    <div class="mb-2">
+                        <h6 class="border-bottom pb-2 mb-3">Aparência</h6>
+
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label for="corPrimaria" class="form-label">Cor Primária</label>
+                                <div class="d-flex gap-2">
+                                    <input type="color" class="form-control form-control-color" id="corPrimaria" name="cor_primaria" value="{{ config_sistema.cor_primaria or '#0d6efd' }}">
+                                    <input type="text" class="form-control" id="corPrimariaHex" value="{{ config_sistema.cor_primaria or '#0d6efd' }}" placeholder="#0d6efd">
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="corSecundaria" class="form-label">Cor Secundária</label>
+                                <div class="d-flex gap-2">
+                                    <input type="color" class="form-control form-control-color" id="corSecundaria" name="cor_secundaria" value="{{ config_sistema.cor_secundaria or '#1d4688' }}">
+                                    <input type="text" class="form-control" id="corSecundariaHex" value="{{ config_sistema.cor_secundaria or '#1d4688' }}" placeholder="#1d4688">
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="preview-cores-sistema">
+                                    <div class="cor-box" id="previewCorPrimaria" data-cor="{{ config_sistema.cor_primaria or '#0d6efd' }}"></div>
+                                    <div class="cor-box" id="previewCorSecundaria" data-cor="{{ config_sistema.cor_secundaria or '#1d4688' }}"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSalvarConfiguracoes">Salvar Alterações</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+<!-- Modal Assinatura Digital -->
+<div class="modal fade" id="modalAssinaturaDigital" tabindex="-1" aria-labelledby="modalAssinaturaDigitalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" style="padding:20px">
+        <div class="modal-content"
+            style="
+            border-radius:12px;
+            border:1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25), 0 0 0 2px rgba(0,123,255,0.15);
+            background:#fff;
+        "
+        >
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalAssinaturaDigitalLabel">
+                    <i class="bi bi-pen me-2"></i> Assinatura Digital
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <p class="text-muted mb-2">
+                    Assine no quadro abaixo usando o mouse ou o dedo.
+                </p>
+
+                <div class="assinatura-canvas-box">
+                    <canvas id="canvasAssinatura" width="800" height="260"></canvas>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLimparCanvasAssinatura">
+                        <i class="bi bi-eraser me-1"></i> Limpar
+                    </button>
+
+                    <button type="button" class="btn btn-primary btn-sm" id="btnSalvarAssinaturaCanvas">
+                        <i class="bi bi-check-circle me-1"></i> Usar esta Assinatura
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<div class="modal fade" id="modalRelatorioFinanceiro" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title">
+                    <i class="bi bi-bar-chart"></i> Relatório Financeiro
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="formRelatorioFinanceiro" method="POST" action="/relatorios/financeiro" target="_blank">
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+                        <!-- PERÍODO -->
+                        <div class="col-12">
+                            <label class="form-label">Período</label>
+
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+
+                                <!-- BOTÕES -->
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        onclick="periodoHoje('financeiro_data_inicial','financeiro_data_final')">Hoje</button>
+
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        onclick="periodoOntem('financeiro_data_inicial','financeiro_data_final')">Ontem</button>
+
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        onclick="periodoMesAtual('financeiro_data_inicial','financeiro_data_final')">Mês</button>
+
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        onclick="periodoSemanaAtual('financeiro_data_inicial','financeiro_data_final')">Semana</button>
+                                </div>
+
+                                <!-- INPUTS -->
+                                <div class="d-flex gap-2 ms-auto">
+                                    <input type="date"
+                                        class="form-control form-control-sm"
+                                        id="financeiro_data_inicial"
+                                        name="data_inicial"
+                                        style="max-width: 170px; width:170px">
+
+                                    <input type="date"
+                                        class="form-control form-control-sm"
+                                        id="financeiro_data_final"
+                                        name="data_final"
+                                        style="max-width: 170px; width:170px">
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- TIPO -->
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select" name="tipo">
+                                <option value="">Todos</option>
+                                <option value="recebimentos">Recebimentos</option>
+                                <option value="despesas">Despesas</option>
+                            </select>
+                        </div>
+
+                        <!-- STATUS -->
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="">Todos</option>
+                                <option value="Pago">Pago</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Atrasado">Atrasado</option>
+                            </select>
+                        </div>
+
+                        <!-- PLANO DE CONTAS -->
+                        <div class="col-md-4">
+                            <label class="form-label">Plano de Contas</label>
+                            <select class="form-select" name="plano_conta">
+                                <option value="">Todos</option>
+                                {% for item in planos_contas %}
+                                    <option value="{{ item.id }}">{{ item.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- CLIENTE -->
+                        <div class="col-md-6">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select" name="cliente" id="select_cliente">
+                                <option value="">Todos</option>
+                                {% for item in clientes %}
+                                    <option value="{{ item.id }}">{{ item.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- FORNECEDOR -->
+                        <div class="col-md-6">
+                            <label class="form-label">Fornecedor</label>
+                            <select class="form-select" name="fornecedor" id="select_fornecedor">
+                                <option value="">Todos</option>
+                                {% for item in fornecedores %}
+                                    <option value="{{ item.id }}">{{ item.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Fechar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-file-earmark-pdf"></i> Gerar Relatório
+                    </button>
+
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+<div class="modal fade" id="modalRelatorioInadimplentes" tabindex="-1">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Relatório de Inadimplentes
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="formRelatorioInadimplentes"
+                  method="POST"
+                  action="{{ url_for('painel.relatorio_inadimplentes') }}"
+                  target="_blank">
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+
+
+                        <!-- PERÍODO -->
+                        <div class="col-12">
+                            <label class="form-label">Período de vencimento</label>
+
+                            <div class="d-flex gap-2 flex-wrap mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick="limparPeriodoInadimplentes()">Tudo</button>
+
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick="periodoHoje('inad_data_inicial','inad_data_final')">Hoje</button>
+
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick="periodoOntem('inad_data_inicial','inad_data_final')">Ontem</button>
+
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick="periodoMesAtual('inad_data_inicial','inad_data_final')">Mês</button>
+
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick="periodoSemanaAtual('inad_data_inicial','inad_data_final')">Semana</button>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           id="inad_data_inicial"
+                                           name="data_inicial">
+                                </div>
+
+                                <div class="col-6">
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           id="inad_data_final"
+                                           name="data_final">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CLIENTE -->
+                        <div class="col-12">
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select" id="inad_cliente" name="cliente">
+                                <option value="">Todos</option>
+                                {% for item in clientes %}
+                                    <option value="{{ item.id }}">{{ item.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- ORDENAÇÃO -->
+                        <div class="col-12">
+                            <label class="form-label">Ordenar por</label>
+                            <select class="form-select" name="ordenar" id="inad_ordenar">
+                                <option value="valor_desc">Maior valor devido</option>
+                                <option value="valor_asc">Menor valor devido</option>
+                                <option value="qtd_desc">Mais contas</option>
+                                <option value="qtd_asc">Menos contas</option>
+                                <option value="nome_asc">Nome do cliente</option>
+                                <option value="nome_desc">Nome do cliente (Z-A)</option>
+                            </select>
+                        </div>
+
+                        
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Fechar
+                    </button>
+
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>Gerar Relatório
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+document.getElementById('fotoPerfil').addEventListener('change', function(event) {
+    const input = event.target;
+    const preview = document.getElementById('previewFotoPerfil');
+
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+});
+
+
+const previewCorPrimaria = document.getElementById("previewCorPrimaria");
+const previewCorSecundaria = document.getElementById("previewCorSecundaria");
+
+if (previewCorPrimaria) {
+    previewCorPrimaria.style.background = previewCorPrimaria.dataset.cor;
+}
+
+if (previewCorSecundaria) {
+    previewCorSecundaria.style.background = previewCorSecundaria.dataset.cor;
+}
+
+</script>
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+    // ===== LOGO =====
+    const areaLogo = document.querySelector(".config-logo-area");
+    const inputLogo = document.getElementById("logoSistema");
+    const previewLogo = document.getElementById("previewLogoSistema");
+
+    if (areaLogo && inputLogo) {
+        areaLogo.addEventListener("click", function () {
+            this.classList.add("clicado_input_file");
+            setTimeout(() => {
+                inputLogo.click();
+                this.classList.remove("clicado_input_file");
+            }, 100);
+        });
+    }
+
+    if (inputLogo && previewLogo) {
+        inputLogo.addEventListener("change", function () {
+            const arquivo = this.files[0];
+
+            if (arquivo) {
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    previewLogo.src = e.target.result;
+                };
+
+                reader.readAsDataURL(arquivo);
+            }
+        });
+    }
+
+
+    // ===== ÍCONE =====
+    const areaIcone = document.querySelector(".config-icone-area");
+    const inputIcone = document.getElementById("iconeSistema");
+    const previewIcone = document.getElementById("previewIconeSistema");
+
+    if (areaIcone && inputIcone) {
+        areaIcone.addEventListener("click", function () {
+            this.classList.add("clicado_input_file");
+            setTimeout(() => {
+                 inputIcone.click();
+                this.classList.remove("clicado_input_file");
+            }, 100);
+           
+        });
+    }
+
+    if (inputIcone && previewIcone) {
+        inputIcone.addEventListener("change", function () {
+            const arquivo = this.files[0];
+
+            if (arquivo) {
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    previewIcone.src = e.target.result;
+                };
+
+                reader.readAsDataURL(arquivo);
+            }
+        });
+    }
+
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectApiWhatsapp = document.getElementById('api_whatsapp');
+    const boxUrlApiWhatsapp = document.getElementById('boxUrlApiWhatsapp');
+    const btnTestarWhatsapp = document.getElementById('btnTestarWhatsapp');
+
+    function controlarCampoUrlWhatsapp() {
+        const valorSelecionado = selectApiWhatsapp.value;
+
+        if (valorSelecionado === 'evolution') {
+            boxUrlApiWhatsapp.style.display = 'block';
+        } else {
+            boxUrlApiWhatsapp.style.display = 'none';
+        }
+    }
+
+    controlarCampoUrlWhatsapp();
+
+    selectApiWhatsapp.addEventListener('change', controlarCampoUrlWhatsapp);
+
+    btnTestarWhatsapp.addEventListener('click', function () {
+        //alert('Depois vamos ligar esse botão à função de teste de disparo.');
+    });
+});
+</script>
+
+
+
+
+<script>
+document.getElementById('btnTestarWhatsapp').addEventListener('click', function () {
+
+    const api = document.getElementById('api_whatsapp').value;
+    const instancia = document.getElementById('instanciaWhatsapp').value;
+    const token = document.getElementById('tokenWhatsapp').value;
+    const url_api = document.getElementById('urlApi')?.value || '';
+    const telefone = document.getElementById('telefoneSistema')?.value || '';    
+
+    mostrarLoading("Testando envio de WhatsApp...");
+
+    fetch('/painel/testar-whatsapp', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            api_whatsapp: api,
+            instancia_whatsapp: instancia,
+            token_whatsapp: token,
+            url_api: url_api,
+            telefone: telefone
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Teste realizado',
+                html: `
+                    <div class="text-start">
+                        <b>Mensagem:</b><br>${data.mensagem}<br><br>
+                        <b>HTTP:</b> ${data.dados.http || '-'}<br><br>
+                        <b>Retorno da API:</b>
+                        <pre style="text-align:left; max-height:200px; overflow:auto; background:#f8f9fa; padding:10px; border-radius:5px;">
+${data.dados.raw || 'Sem retorno'}
+                        </pre>
+                    </div>
+                `,
+                width: 600
+            });
+
+        } else {
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro no teste',
+                html: `
+                    <div class="text-start">
+                        <b>Mensagem:</b><br>${data.mensagem}<br><br>
+                        <b>HTTP:</b> ${data.dados?.http || '-'}<br><br>
+                        <b>Retorno da API:</b>
+                        <pre style="text-align:left; max-height:200px; overflow:auto; background:#f8f9fa; padding:10px; border-radius:5px;">
+${data.dados?.raw || 'Sem retorno'}
+                        </pre>
+                    </div>
+                `,
+                width: 600
+            });
+
+        }
+    })
+    .catch(err => {
+        fecharLoading();
+        mensagemErro("Erro ao conectar com o servidor.");
+        console.error(err);
+    });
+
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalConfiguracoes = document.getElementById('modalConfiguracoes');
+    const inputSmtpSenha = document.getElementById('smtpSenha');
+
+    if (modalConfiguracoes && inputSmtpSenha) {
+        modalConfiguracoes.addEventListener('show.bs.modal', function () {
+            inputSmtpSenha.value = '';
+            inputSmtpSenha.setAttribute('value', '');
+        });
+
+        modalConfiguracoes.addEventListener('shown.bs.modal', function () {
+            setTimeout(() => {
+                inputSmtpSenha.value = '';
+            }, 100);
+        });
+    }
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnTestarEmail = document.getElementById('btnTestarEmail');
+
+    if (!btnTestarEmail) return;
+
+    btnTestarEmail.addEventListener('click', async function () {
+        const smtp_host = document.getElementById('smtpHost').value;
+        const smtp_porta = document.getElementById('smtpPorta').value;
+        const smtp_seguranca = document.getElementById('smtpSeguranca').value;
+        const smtp_senha = document.getElementById('smtpSenha').value;
+        const email_sistema = document.getElementById('emailSistema').value;       
+
+        mostrarLoading('Testando envio de e-mail...');
+
+        try {
+            const response = await fetch('/painel/testar-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    smtp_host,
+                    smtp_porta,
+                    smtp_seguranca,
+                    smtp_senha,
+                    email_sistema,
+                    email_sistema
+                })
+            });
+
+            const data = await response.json();
+            fecharLoading();
+
+            Swal.fire({
+                icon: data.status === 'sucesso' ? 'success' : 'error',
+                title: data.status === 'sucesso' ? 'Teste realizado' : 'Falha no teste',
+                html: `
+                    <div class="text-start">
+                        <b>Mensagem:</b><br>${data.mensagem}<br><br>
+                        <b>Retorno técnico:</b>
+                        <pre style="text-align:left; max-height:220px; overflow:auto; background:#f8f9fa; padding:10px; border-radius:5px;">${data.dados?.raw || 'Sem retorno'}</pre>
+                    </div>
+                `,
+                width: 650
+            });
+
+        } catch (error) {
+            fecharLoading();
+            mensagemErro('Erro ao conectar com o servidor.');
+        }
+    });
+});
+</script>
+
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnTestarIa = document.getElementById('btnTestarIa');
+
+    if (!btnTestarIa) return;
+
+    btnTestarIa.addEventListener('click', async function () {
+        const api_ia = document.getElementById('api_ia').value;
+        const token_ia = document.getElementById('tokenIa').value;
+
+        const promptTeste = window.prompt('Digite o prompt para teste da IA:');
+
+        if (!promptTeste || !promptTeste.trim()) {
+            mensagemAviso('Informe um prompt para teste.');
+            return;
+        }
+
+        btnTestarIa.disabled = true;
+        const textoOriginal = btnTestarIa.innerHTML;
+        btnTestarIa.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Testando...';
+
+        mostrarLoading('Testando integração com IA...');
+
+        try {
+            const response = await fetch('/painel/testar-ia', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    api_ia,
+                    token_ia,
+                    prompt: promptTeste
+                })
+            });
+
+            const data = await response.json();
+            fecharLoading();
+
+            Swal.fire({
+                icon: data.status === 'sucesso' ? 'success' : 'error',
+                title: data.status === 'sucesso' ? 'Teste realizado' : 'Falha no teste',
+                html: `
+                    <div class="text-start">
+                        <b>Mensagem:</b><br>${data.mensagem || '-'}<br><br>
+                        <b>HTTP:</b> ${data.dados?.http || '-'}<br><br>
+                        <b>Texto retornado:</b>
+                        <pre style="text-align:left; max-height:180px; overflow:auto; background:#f8f9fa; padding:10px; border-radius:5px; white-space:pre-wrap;">${data.dados?.text || 'Sem texto retornado'}</pre>
+                        <br>
+                        <b>Retorno técnico:</b>
+                        <pre style="text-align:left; max-height:220px; overflow:auto; background:#f8f9fa; padding:10px; border-radius:5px; white-space:pre-wrap;">${data.dados?.raw || 'Sem retorno técnico'}</pre>
+                    </div>
+                `,
+                width: 700
+            });
+
+        } catch (error) {
+            fecharLoading();
+            mensagemErro('Erro ao testar a integração com IA.');
+        } finally {
+            btnTestarIa.disabled = false;
+            btnTestarIa.innerHTML = textoOriginal;
+        }
+    });
+});
+</script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnAbrirAssinatura = document.getElementById('btnAbrirAssinatura');
+    const btnLimparAssinatura = document.getElementById('btnLimparAssinatura');
+    const btnLimparCanvasAssinatura = document.getElementById('btnLimparCanvasAssinatura');
+    const btnSalvarAssinaturaCanvas = document.getElementById('btnSalvarAssinaturaCanvas');
+
+    const modalAssinaturaEl = document.getElementById('modalAssinaturaDigital');
+    const modalAssinatura = modalAssinaturaEl ? new bootstrap.Modal(modalAssinaturaEl) : null;
+
+    const canvas = document.getElementById('canvasAssinatura');
+    const assinaturaBase64 = document.getElementById('assinaturaBase64');
+    const removerAssinatura = document.getElementById('removerAssinatura');
+    const previewContainer = document.getElementById('assinaturaPreviewBox');
+
+    if (!canvas || !previewContainer) return;
+
+    const ctx = canvas.getContext('2d');
+    let desenhando = false;
+    let houveDesenho = false;
+
+    function configurarCanvas() {
+        const ratio = window.devicePixelRatio || 1;
+        const largura = canvas.offsetWidth || 800;
+        const altura = 260;
+
+        canvas.width = largura * ratio;
+        canvas.height = altura * ratio;
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(ratio, ratio);
+
+        canvas.style.height = altura + 'px';
+
+        ctx.lineWidth = 1.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#111827';
+        ctx.fillStyle = '#ffffff';
+
+        limparCanvasVisual();
+    }
+
+    function limparCanvasVisual() {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        houveDesenho = false;
+    }
+
+    function getPosicao(event) {
+        const rect = canvas.getBoundingClientRect();
+
+        if (event.touches && event.touches.length > 0) {
+            return {
+                x: event.touches[0].clientX - rect.left,
+                y: event.touches[0].clientY - rect.top
+            };
+        }
+
+        return {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
+    }
+
+    function iniciarDesenho(event) {
+        event.preventDefault();
+        desenhando = true;
+
+        const pos = getPosicao(event);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    }
+
+    function desenhar(event) {
+        if (!desenhando) return;
+        event.preventDefault();
+
+        const pos = getPosicao(event);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        houveDesenho = true;
+    }
+
+    function pararDesenho(event) {
+        if (!desenhando) return;
+        event.preventDefault();
+        desenhando = false;
+        ctx.closePath();
+    }
+
+    function atualizarPreviewAssinatura(dataUrl) {
+        previewContainer.innerHTML = `
+            <img src="${dataUrl}" id="previewAssinaturaPerfil" class="assinatura-preview-img" alt="Assinatura do usuário">
+        `;
+    }
+
+    function mostrarPlaceholderAssinatura() {
+        previewContainer.innerHTML = `
+            <div class="assinatura-placeholder" id="previewAssinaturaPerfil">
+                <i class="bi bi-pen"></i>
+                <span>Sem assinatura cadastrada</span>
+            </div>
+        `;
+    }
+
+    // Eventos mouse
+    canvas.addEventListener('mousedown', iniciarDesenho);
+    canvas.addEventListener('mousemove', desenhar);
+    canvas.addEventListener('mouseup', pararDesenho);
+    canvas.addEventListener('mouseleave', pararDesenho);
+
+    // Eventos touch
+    canvas.addEventListener('touchstart', iniciarDesenho, { passive: false });
+    canvas.addEventListener('touchmove', desenhar, { passive: false });
+    canvas.addEventListener('touchend', pararDesenho, { passive: false });
+
+    if (btnAbrirAssinatura) {
+        btnAbrirAssinatura.addEventListener('click', function () {
+            if (modalAssinatura) {
+                modalAssinatura.show();
+
+                setTimeout(() => {
+                    configurarCanvas();
+                }, 200);
+            }
+        });
+    }
+
+    if (btnLimparCanvasAssinatura) {
+        btnLimparCanvasAssinatura.addEventListener('click', function () {
+            limparCanvasVisual();
+        });
+    }
+
+    if (btnSalvarAssinaturaCanvas) {
+        btnSalvarAssinaturaCanvas.addEventListener('click', function () {
+            if (!houveDesenho) {
+                mensagemAviso('Faça a assinatura no quadro antes de continuar.');
+                return;
+            }
+
+            const dataUrl = canvas.toDataURL('image/png');
+            assinaturaBase64.value = dataUrl;
+            removerAssinatura.value = 'não';
+
+            atualizarPreviewAssinatura(dataUrl);
+
+            if (modalAssinatura) {
+                modalAssinatura.hide();
+            }
+
+            mensagemSucesso('Assinatura adicionada com sucesso.');
+        });
+    }
+
+    if (btnLimparAssinatura) {
+        btnLimparAssinatura.addEventListener('click', async function () {
+            const confirmacao = await confirmarAcao({
+                titulo: 'Remover assinatura?',
+                texto: 'A assinatura atual será removida ao salvar o perfil.',
+                textoConfirmar: 'Sim, remover',
+                textoCancelar: 'Cancelar'
+            });
+
+            if (!confirmacao.isConfirmed) return;
+
+            assinaturaBase64.value = '';
+            removerAssinatura.value = 'sim';
+            mostrarPlaceholderAssinatura();
+
+            mensagemInfo('A assinatura será removida ao salvar o perfil.');
+        });
+    }
+
+    if (modalAssinaturaEl) {
+        modalAssinaturaEl.addEventListener('shown.bs.modal', function () {
+            configurarCanvas();
+        });
+    }
+
+    window.addEventListener('resize', function () {
+        if (modalAssinaturaEl.classList.contains('show')) {
+            configurarCanvas();
+        }
+    });
+});
+</script>
+
+
+<script>
+    function iniciarSelectsRelatorioFinanceiro() {
+    aplicarSelect2('select_cliente');
+    aplicarSelect2('select_fornecedor');
+}
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalRelatorioFinanceiro');
+
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function () {
+            iniciarSelectsRelatorioFinanceiro();
+        });
+    }
+});
+</script>
+
+
+<style id="2w4e9m">
+#modalRelatorioFinanceiro .select2-container {
+    width: 100% !important;
+}
+
+#modalRelatorioFinanceiro .select2-container .select2-selection--single {
+    height: 42px !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 0.375rem !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 12px !important;
+    background: #fff !important;
+}
+
+#modalRelatorioFinanceiro .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #212529 !important;
+    line-height: normal !important;
+    padding-left: 0 !important;
+    padding-right: 20px !important;
+    width: 100%;
+}
+
+#modalRelatorioFinanceiro .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #6c757d !important;
+}
+
+#modalRelatorioFinanceiro .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 40px !important;
+    right: 8px !important;
+}
+
+#modalRelatorioFinanceiro .select2-dropdown {
+    border: 1px solid #ced4da !important;
+    border-radius: 0.375rem !important;
+    overflow: hidden;
+}
+
+#modalRelatorioFinanceiro .select2-search--dropdown .select2-search__field {
+    border: 1px solid #ced4da !important;
+    border-radius: 0.375rem !important;
+    padding: 6px 10px !important;
+}
+
+#modalRelatorioFinanceiro .select2-results__option {
+    padding: 8px 12px !important;
+    font-size: 14px;
+}
+</style>
+
+
+
+<script>
+function iniciarSelectsRelatorioInadimplentes() {
+    aplicarSelect2('inad_cliente', 'Selecione um cliente');
+}
+
+function limparPeriodoInadimplentes() {
+    const campoInicial = document.getElementById('inad_data_inicial');
+    const campoFinal = document.getElementById('inad_data_final');
+
+    if (campoInicial) campoInicial.value = '';
+    if (campoFinal) campoFinal.value = '';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modalRelatorioInadimplentes');
+
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function () {
+            iniciarSelectsRelatorioInadimplentes();
+        });
+    }
+});
+</script>

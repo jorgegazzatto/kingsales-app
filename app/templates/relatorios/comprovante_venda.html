@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Comprovante de Venda #{{ venda.id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        :root {
+            --largura-comprovante: 72mm;
+            --fonte-base: 12px;
+            --fonte-pequena: 10px;
+            --fonte-titulo: 15px;
+            --fonte-total: 16px;
+            --cor-texto: #000000;
+            --cor-borda: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            background: #ffffff;
+            color: var(--cor-texto);
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: var(--fonte-base);
+            line-height: 1.35;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            padding: 8px 0;
+        }
+
+        .comprovante {
+            width: var(--largura-comprovante);
+            max-width: var(--largura-comprovante);
+            padding: 6px 4px;
+        }
+
+        .centro {
+            text-align: center;
+        }
+
+        .direita {
+            text-align: right;
+        }
+
+        .esquerda {
+            text-align: left;
+        }
+
+        .titulo {
+            font-size: var(--fonte-titulo);
+            font-weight: 700;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .subtitulo {
+            font-size: var(--fonte-pequena);
+            margin-bottom: 2px;
+        }
+
+        .linha {
+            border-top: 1px dashed var(--cor-borda);
+            margin: 8px 0;
+        }
+
+        .bloco {
+            margin-bottom: 8px;
+        }
+
+        .info-linha {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+
+        .info-label {
+            font-weight: 700;
+        }
+
+        .texto-pequeno {
+            font-size: var(--fonte-pequena);
+        }
+
+        .itens {
+            width: 100%;
+        }
+
+        .item {
+            padding: 6px 0;
+            border-bottom: 1px dotted #999;
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item-nome {
+            font-weight: 700;
+            font-size: var(--fonte-base);
+            word-break: break-word;
+        }
+
+        .item-detalhe {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: var(--fonte-pequena);
+            margin-top: 2px;
+        }
+
+        .totais .info-linha {
+            margin-bottom: 4px;
+        }
+
+        .total-final {
+            font-size: var(--fonte-total);
+            font-weight: 700;
+        }
+
+        .rodape {
+            margin-top: 10px;
+            text-align: center;
+            font-size: var(--fonte-pequena);
+        }
+
+        .observacoes {
+            white-space: pre-line;
+            word-break: break-word;
+            font-size: var(--fonte-pequena);
+        }
+
+        @media print {
+            @page {
+                size: 80mm auto;
+                margin: 2mm;
+            }
+
+            html, body {
+                width: 80mm;
+                background: #fff;
+            }
+
+            body {
+                padding: 0;
+                margin: 0;
+            }
+
+            .comprovante {
+                width: var(--largura-comprovante);
+                max-width: var(--largura-comprovante);
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+   <div class="comprovante">
+
+    <div class="bloco centro">
+        <div class="titulo">{{ config_sistema.nome_sistema or 'Comprovante de Venda' }}</div>
+        {% if config_sistema.telefone_sistema %}
+        <div class="subtitulo">{{ config_sistema.telefone_sistema }}</div>
+        {% endif %}
+        {% if config_sistema.endereco_sistema %}
+        <div class="subtitulo">{{ config_sistema.endereco_sistema }}</div>
+        {% endif %}
+    </div>
+
+    <div class="linha"></div>
+
+    <div class="bloco centro">
+        <div class="titulo" style="font-size: 13px;">COMPROVANTE DE VENDA</div>
+        <div class="subtitulo">Venda Nº {{ venda.id }}</div>
+    </div>
+
+    <div class="linha"></div>
+
+    <div class="bloco">
+        <div class="info-linha">
+            <span class="info-label">Data:</span>
+            <span>{{ venda.data_lancamento_formatada }}</span>
+        </div>
+
+        <div class="info-linha">
+            <span class="info-label">Hora:</span>
+            <span>{{ venda.hora_lancamento or '-' }}</span>
+        </div>
+
+        <div class="info-linha">
+            <span class="info-label">Cliente:</span>
+            <span class="direita">{{ venda.cliente_nome or 'Consumidor Final' }}</span>
+        </div>
+
+        <div class="info-linha">
+            <span class="info-label">Pagamento:</span>
+            <span class="direita">{{ venda.forma_pagamento_nome or '-' }}</span>
+        </div>
+
+        <div class="info-linha">
+            <span class="info-label">Status:</span>
+            <span>{{ venda.status or '-' }}</span>
+        </div>
+    </div>
+
+    <div class="linha"></div>
+
+    <div class="bloco">
+        <div class="centro" style="font-weight: 700; margin-bottom: 6px;">ITENS DA VENDA</div>
+
+        <div class="itens">
+            {% for item in itens %}
+            <div class="item">
+                <div class="item-nome">{{ item.produto_nome or 'Produto' }}</div>
+                <div class="item-detalhe">
+                    <span>
+                        {{ ('%.2f'|format(item.quantidade or 0)).replace('.', ',') }}
+                        x
+                        R$ {{ '{:,.2f}'.format(item.valor_unitario or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                    </span>
+                    <span>
+                        R$ {{ '{:,.2f}'.format(item.subtotal or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="linha"></div>
+
+    <div class="bloco totais">
+        <div class="info-linha">
+            <span class="info-label">Subtotal:</span>
+            <span>R$ {{ '{:,.2f}'.format(venda.valor or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+        </div>
+
+        <div class="info-linha">
+            <span class="info-label">Desconto:</span>
+            <span>R$ {{ '{:,.2f}'.format(venda.desconto or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+        </div>
+
+        <div class="info-linha">
+            <span class="info-label">Acréscimo:</span>
+            <span>R$ {{ '{:,.2f}'.format(venda.acrescimo or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+        </div>
+
+        <div class="linha"></div>
+
+        <div class="info-linha total-final">
+            <span>TOTAL:</span>
+            <span>R$ {{ '{:,.2f}'.format(venda.subtotal or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+        </div>
+    </div>
+
+    {% if venda.observacoes %}
+    <div class="linha"></div>
+
+    <div class="bloco">
+        <div class="info-label" style="margin-bottom: 4px;">Observações:</div>
+        <div class="observacoes">{{ venda.observacoes }}</div>
+    </div>
+    {% endif %}
+
+    <div class="linha"></div>
+
+    <div class="rodape">
+        <div>Obrigado pela preferência!</div>
+        <div style="margin-top: 4px;">Volte sempre.</div>
+    </div>
+
+</div>
+
+
+{% if auto_print %}
+<script>
+    window.onload = function () {
+        setTimeout(function () {
+            window.print();
+        }, 300);
+    };
+
+    window.onafterprint = function () {
+        setTimeout(function () {
+            window.close();
+        }, 300);
+    };
+</script>
+{% endif %}
+
+
+</body>
+</html>

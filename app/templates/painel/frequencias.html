@@ -1,0 +1,506 @@
+{% extends "painel/base.html" %}
+
+{% block title %}Frequências - {{ config_sistema.nome_sistema }}{% endblock %}
+{% block page_title %}Frequências{% endblock %}
+
+{% block content %}
+<div class="content-card">
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h4 class="mb-0">Frequências</h4>
+            <small class="text-muted">Cadastro de Frequência</small>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+            {% if 'excluir' in acoes_usuario %}
+            <button type="button" class="btn btn-outline-danger d-none" id="btnExcluirSelecionados">
+                <i class="bi bi-trash me-1"></i> Excluir Selecionados
+            </button>
+            {% endif %}
+
+            {% if 'inserir' in acoes_usuario %}
+            <button id="btnNovo" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal">
+                <i class="bi bi-plus-circle me-1"></i> Nova Frequência
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle table-hover" id="tabela">
+            <thead>
+                <tr>
+                    <th style="width: 20px;" class="text-center">
+                        <input type="checkbox" id="checkTodos">
+                    </th>                    
+                    <th>Nome</th>  
+                    <th>Dias</th>                    
+                    <th style="width: 190px;" class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbody">
+                
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+
+<!-- Modal Cadastro -->
+<div class="modal fade" id="modal" tabindex="-1" aria-labelledby="modalUsuarioLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-sm">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalLabel">
+                    <i class="bi bi-people me-2"></i><span id="tituloModal"> Cadastro de Frequências</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <form id="form" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="id" id="id">
+
+                <div class="modal-body">              
+                  
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label for="nome" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nome" name="nome" required>
+                            </div>   
+                            <div class="col-md-4">
+                                <label for="dias" class="form-label">Dias</label>
+                                <input type="number" class="form-control" id="dias" name="dias" required>
+                            </div>                            
+                    </div>                 
+
+                  
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSalvar">Salvar Alterações</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+{% block scripts %}
+
+<script id="acoes-usuario-json" type="application/json">
+    {{ acoes_usuario | tojson | safe }}
+</script>
+
+<script>
+let referencia = 'frequencias';
+
+const acoesUsuario = JSON.parse(
+    document.getElementById('acoes-usuario-json').textContent
+);
+</script>
+
+
+<script>
+async function listar() {
+    const tbody = document.getElementById("tbody");
+
+    if (!tbody) return;
+
+    if ($.fn.DataTable.isDataTable('#tabela')) {
+        $('#tabela').DataTable().destroy();
+    }    
+
+    try {
+        const response = await fetch("/"+referencia+"/listar");
+        const lista = await response.json();        
+
+        let html = "";
+
+        lista.forEach(item => {
+                     
+            const nome = item.nome || "";  
+            const dias = item.dias; 
+            const ativo = item.ativo || "Sim";     
+            const podeEditar = acoesUsuario.includes('editar');
+            const podeExcluir = acoesUsuario.includes('excluir'); 
+            const classeLinha = item.ativo === "Sim" ? "" : "linha-inativa";      
+            
+            html += `
+                <tr class="${classeLinha}">
+                    <td class="text-center">
+                        <input type="checkbox" class="check-item" value="${item.id}">
+                    </td>                    
+                    <td>${nome}</td>
+                    <td>${dias}</td>                    
+                    <td class="text-center">
+
+                        <div class="acoes-tabela">
+                        ${podeEditar ? `    
+                            <button 
+                                type="button" 
+                                class="btn btn-sm btn-primary"
+                                onclick='editarRegistro(${JSON.stringify(item)})'
+                                title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>     
+                        ` : ''}                
+
+                        ${podeExcluir ? `
+                            <button 
+                                type="button" 
+                                class="btn btn-sm btn-danger"
+                                onclick='excluirRegistro(${JSON.stringify(item.id)}, ${JSON.stringify(item.nome || "")})'
+                                title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        ` : ''}  
+                        
+                         ${podeEditar ? `
+                            <button 
+                                type="button" 
+                                class="btn btn-sm btn-warning"
+                                onclick="alternarStatus('${item.id}', '${(item.nome || '').replace(/'/g, "\\'")}', '${ativo}')"
+                                title="${ativo === 'Sim' ? 'Desativar' : 'Ativar'}"
+                            >
+                                <i class="bi ${ativo === 'Sim' ? 'bi-toggle-on' : 'bi-toggle-off'}"></i>
+                            </button>
+                            ` : ''}
+
+                        </div>
+
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+        iniciarDataTable();
+
+    } catch (error) {
+        mensagemErro("Erro ao carregar registros");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    listar();
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formCadastro = document.getElementById("form");
+    const btnSalvar = document.getElementById("btnSalvar");      
+
+    if (formCadastro) {
+        formCadastro.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(formCadastro);
+
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = 'Salvando...';
+            mostrarLoading("Salvando dados...");
+
+            try {
+                const response = await fetch("/"+referencia+"/salvar", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === "sucesso") {
+                    await mensagemSucesso(data.mensagem);
+
+                    const modalEl = document.getElementById("modal");
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) {
+                        modal.hide();
+                    }
+
+                    limparFormulario();
+                    listar();
+                } else {
+                    mensagemAviso(data.mensagem);
+                }
+
+            } catch (error) {
+                fecharLoading();
+                mensagemErro("Erro ao salvar os dados.");
+            } finally {
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = 'Salvar';
+            }
+        });
+    }
+});
+</script>
+
+
+
+<script>
+function limparFormulario() {
+    document.getElementById('form').reset();
+    document.getElementById('id').value = '';  
+
+    const tituloModal = document.getElementById('tituloModal');
+    if (tituloModal) {
+        tituloModal.innerHTML = 'Inserir Registro';
+    }
+}
+</script>
+
+
+
+<script>
+function editarRegistro(dados) {
+    document.getElementById('id').value = dados.id || '';
+    document.getElementById('nome').value = dados.nome || '';
+    document.getElementById('dias').value = dados.dias || '';    
+
+    const tituloModal = document.getElementById('tituloModal');
+    if (tituloModal) {
+        tituloModal.innerHTML = 'Editar Registro';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('modal'));
+    modal.show();
+}
+</script>
+
+
+
+
+<script>
+async function excluirRegistro(id, nome) {
+    const confirmacao = await confirmarAcao({
+        titulo: 'Excluir registro?',
+        texto: `Registro: ${nome}`,
+        textoConfirmar: 'Sim, excluir',
+        textoCancelar: 'Cancelar'
+    });
+
+    if (!confirmacao.isConfirmed) {
+        return;
+    }
+
+    mostrarLoading('Excluindo ...');
+
+    try {
+        const response = await fetch('/'+referencia+'/excluir', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: id
+            })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            await mensagemSucesso(data.mensagem);
+            listar();
+        } else {
+            mensagemAviso(data.mensagem || 'Não foi possível excluir o registro.');
+        }
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro('Erro ao excluir o registro.');
+    }
+}
+</script>
+
+
+<script>
+        function iniciarDataTable() {
+            if ($.fn.DataTable.isDataTable('#tabela')) {
+                $('#tabela').DataTable().destroy();
+            }
+
+            $('#tabela').DataTable({
+                responsive: true,
+                autoWidth: false,
+                ordering: false,
+                pageLength: 10,
+
+                language: {
+                    emptyTable: "Nenhum registro encontrado",
+                    zeroRecords: "Nenhum resultado encontrado",
+                    loadingRecords: "Carregando...",
+                    processing: "Processando..."
+                }
+            });
+        }
+        </script>
+
+
+
+
+<script>
+function atualizarBotaoExcluirSelecionados() {
+    const checks = document.querySelectorAll('.check-item:checked');
+    const btn = document.getElementById('btnExcluirSelecionados');
+
+    if (!btn) return;
+
+    if (checks.length > 0) {
+        btn.classList.remove('d-none');
+        btn.innerHTML = `<i class="bi bi-trash me-1"></i> Excluir Selecionados (${checks.length})`;
+    } else {
+        btn.classList.add('d-none');
+        btn.innerHTML = `<i class="bi bi-trash me-1"></i> Excluir Selecionados`;
+    }
+}
+
+document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('check-item')) {
+        atualizarBotaoExcluirSelecionados();
+    }
+
+    if (e.target.id === 'checkTodos') {
+        const marcado = e.target.checked;
+        document.querySelectorAll('.check-item').forEach(check => {
+            check.checked = marcado;
+        });
+        atualizarBotaoExcluirSelecionados();
+    }
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnExcluirSelecionados = document.getElementById('btnExcluirSelecionados');
+
+    if (btnExcluirSelecionados) {
+        btnExcluirSelecionados.addEventListener('click', async function () {
+            const selecionados = Array.from(document.querySelectorAll('.check-item:checked'))
+                .map(item => item.value);
+
+            if (!selecionados.length) {
+                mensagemAviso('Selecione pelo menos um registro.');
+                return;
+            }
+
+            const confirmacao = await confirmarAcao({
+                titulo: 'Excluir registros selecionados?',
+                texto: `Quantidade selecionada: ${selecionados.length}`,
+                textoConfirmar: 'Sim, excluir',
+                textoCancelar: 'Cancelar'
+            });
+
+            if (!confirmacao.isConfirmed) return;
+
+            mostrarLoading('Excluindo registros selecionados...');
+
+            try {
+                const response = await fetch('/'+referencia+'/excluir-lote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ids: selecionados
+                    })
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === 'sucesso') {
+                    await mensagemSucesso(data.mensagem);
+                    listar();
+                    const checkTodos = document.getElementById('checkTodos');
+                    if (checkTodos) checkTodos.checked = false;
+                    atualizarBotaoExcluirSelecionados();
+                } else {
+                    mensagemAviso(data.mensagem || 'Não foi possível excluir os registros.');
+                }
+
+            } catch (error) {
+                fecharLoading();
+                mensagemErro('Erro ao excluir os registros selecionados.');
+            }
+        });
+    }
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const btnNovo = document.getElementById("btnNovo");
+    const modalEl = document.getElementById("modal");
+
+    if (btnNovo) {
+        btnNovo.addEventListener("click", function () {
+            limparFormulario();
+        });
+    }
+
+    if (modalEl) {
+        modalEl.addEventListener("hidden.bs.modal", function () {
+            limparFormulario();
+        });
+    }
+});
+</script>
+
+
+
+
+<script>
+async function alternarStatus(id, nome, statusAtual) {
+    const novoStatus = statusAtual === 'Sim' ? 'Não' : 'Sim';
+    const acaoTexto = statusAtual === 'Sim' ? 'desativando' : 'ativando';
+
+    mostrarLoading(`${acaoTexto.charAt(0).toUpperCase() + acaoTexto.slice(1)} usuário...`);
+
+    try {
+        const response = await fetch('/'+referencia+'/alternar-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: id,
+                ativo: novoStatus
+            })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            listar();
+        } else {
+            mensagemAviso(data.mensagem || 'Não foi possível atualizar o status.');
+        }
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro('Erro ao alterar o status do usuário.');
+    }
+}
+</script>
+
+
+{% endblock %}
+

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Recibo</title>
+
+<style>
+/* =========================
+   🧾 BASE 80MM
+========================= */
+body {
+    font-family: monospace;
+    font-size: 12px;
+    width: 80mm;
+    margin: 0 auto;
+    padding: 5px;
+    color: #000;
+}
+
+.center { text-align: center; }
+.bold { font-weight: bold; }
+.small { font-size: 10px; }
+
+hr {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 6px 0;
+}
+
+/* =========================
+   🏢 HEADER
+========================= */
+.logo {
+    max-width: 120px;
+    margin-bottom: 5px;
+}
+
+/* =========================
+   📦 LINHAS
+========================= */
+.linha {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+}
+
+/* =========================
+   💰 TOTAL
+========================= */
+.total {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* =========================
+   🖊️ ASSINATURA
+========================= */
+.assinatura {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.assinatura img {
+    max-height: 50px;
+    margin-bottom: 3px;
+}
+
+.assinatura-linha {
+    border-top: 1px solid #000;
+    margin-top: 5px;
+    font-size: 11px;
+}
+
+/* =========================
+   🖨️ IMPRESSÃO
+========================= */
+@media print {
+    body {
+        margin: 0;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<!-- =========================
+     🏢 CABEÇALHO
+========================= -->
+<div class="center">
+    {% if logo_src %}
+        <img src="{{ logo_src }}" class="logo">
+    {% endif %}
+
+    <div class="bold">{{ config_sistema.nome_sistema }}</div>
+    <div class="small">{{ config_sistema.telefone }}</div>
+</div>
+
+<hr>
+
+<div class="center bold">
+    RECIBO DE PAGAMENTO
+</div>
+
+<hr>
+
+<!-- =========================
+     📄 DADOS
+========================= -->
+<div class="linha">
+    <span>ID:</span>
+    <span>#{{ recebimento.id }}</span>
+</div>
+
+<div class="linha">
+    <span>Data:</span>
+    <span>{{ recebimento.data_pagamento.strftime('%d/%m/%Y') if recebimento.data_pagamento else '-' }}</span>
+</div>
+
+<div class="linha">
+    <span>Status:</span>
+    <span>{{ recebimento.status }}</span>
+</div>
+
+<hr>
+
+<div>
+    <div class="bold">Cliente</div>
+    <div>{{ recebimento.cliente_nome or 'Consumidor Final' }}</div>
+</div>
+
+<hr>
+
+<div>
+    <div class="bold">Descrição</div>
+    <div>{{ recebimento.descricao }}</div>
+</div>
+
+<hr>
+
+<!-- =========================
+     💰 VALORES
+========================= -->
+<div class="linha">
+    <span>Valor:</span>
+    <span>R$ {{ '{:,.2f}'.format(recebimento.valor or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+</div>
+
+{% if recebimento.desconto and recebimento.desconto > 0 %}
+<div class="linha">
+    <span>Desconto:</span>
+    <span>- R$ {{ '{:,.2f}'.format(recebimento.desconto).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+</div>
+{% endif %}
+
+{% if recebimento.juros and recebimento.juros > 0 %}
+<div class="linha">
+    <span>Juros:</span>
+    <span>+ R$ {{ '{:,.2f}'.format(recebimento.juros).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+</div>
+{% endif %}
+
+{% if recebimento.multa and recebimento.multa > 0 %}
+<div class="linha">
+    <span>Multa:</span>
+    <span>+ R$ {{ '{:,.2f}'.format(recebimento.multa).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+</div>
+{% endif %}
+
+<hr>
+
+<div class="linha total">
+    <span>Total Pago:</span>
+    <span>R$ {{ '{:,.2f}'.format(recebimento.subtotal or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+</div>
+
+<hr>
+
+<!-- =========================
+     💳 PAGAMENTO
+========================= -->
+<div class="linha">
+    <span>Pagamento:</span>
+    <span>{{ recebimento.forma_pagamento_nome or '-' }}</span>
+</div>
+
+{% if recebimento.parcela > 1 %}
+<div class="linha">
+    <span>Parcela:</span>
+    <span>{{ recebimento.parcela }}/{{ recebimento.qtd_parcelas }}</span>
+</div>
+{% endif %}
+
+<hr>
+
+<!-- =========================
+     📝 OBSERVAÇÕES
+========================= -->
+{% if recebimento.observacoes %}
+<div>
+    <div class="bold">Observações</div>
+    <div class="small">{{ recebimento.observacoes }}</div>
+</div>
+
+<hr>
+{% endif %}
+
+<!-- =========================
+     🖊️ ASSINATURA
+========================= -->
+<div class="assinatura">
+    {% if assinatura_src %}
+        <img src="{{ assinatura_src }}">
+    {% endif %}
+
+    <div class="assinatura-linha">
+        {{ assinatura_nome }}
+    </div>
+</div>
+
+<hr>
+
+<div class="center small">
+    Gerado em {{ now().strftime('%d/%m/%Y %H:%M') }}
+</div>
+
+</body>
+</html>

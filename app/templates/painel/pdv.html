@@ -1,0 +1,209 @@
+{% extends "painel/base.html" %}
+
+{% block title %}PDV - {{ config_sistema.nome_sistema }}{% endblock %}
+{% block page_title %}PDV - Ponto de Venda{% endblock %}
+
+{% block content %}
+<div class="pdv-page">
+    <div class="row g-3">
+
+        <!-- ESQUERDA -->
+        <div class="col-lg-8">
+            <div class="content-card h-100">
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div>
+                        <h4 class="mb-0">Ponto de Venda</h4>
+                        <small class="text-muted">Selecione uma categoria e adicione os produtos ao carrinho</small>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-outline-secondary" id="btnAtualizarProdutos">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+                        </button>
+
+                        <button type="button" class="btn btn-outline-danger" id="btnLimparVenda">
+                            <i class="bi bi-trash me-1"></i> Limpar Venda
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CATEGORIAS -->
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Categorias</label>
+
+                    <div class="pdv-categorias" id="listaCategorias"></div>
+                </div>
+
+                <!-- BUSCA -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Buscar Produto</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" class="form-control" id="buscaProduto" placeholder="Digite o nome do produto">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Filtro Estoque</label>
+                        <select class="form-select" id="filtroEstoque">
+                            <option value="">Todos</option>
+                            <option value="com_estoque">Com estoque</option>
+                            <option value="baixo_estoque">Baixo estoque</option>
+                            <option value="sem_estoque">Sem estoque</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- PRODUTOS -->
+                <div class="pdv-produtos-area">
+                    <div class="row g-3" id="listaProdutos"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- DIREITA -->
+        <div class="col-lg-4">
+            <div class="content-card h-100">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="mb-0">Carrinho</h5>
+                        <small class="text-muted">Resumo da venda atual</small>
+                    </div>
+                    <span class="badge bg-primary" id="qtdItensCarrinho">0 item(s)</span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Cliente</label>
+                    <select class="form-select" id="cliente_venda">
+                        <option value="">Consumidor Final</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Data</label>
+                        <input type="date" class="form-control" id="data_venda" min="{{ now().strftime('%Y-%m-%d') if now else '' }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Forma de Pagamento</label>
+                        <select class="form-select" id="forma_pagamento_venda">
+                            <option value="">Selecione</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pdv-carrinho-lista mb-3" id="listaCarrinho">
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-cart3 fs-1 d-block mb-2"></i>
+                        <div class="fw-semibold">Nenhum produto adicionado</div>
+                        <small>Os itens da venda aparecerão aqui</small>
+                    </div>
+                </div>
+
+                <div class="border rounded-3 p-3 mb-3">
+                    <h6 class="mb-3">Ajustes da Venda</h6>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">Desconto</label>
+                            <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="desconto_venda" value="0,00">
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label">Acréscimo</label>
+                            <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="acrescimo_venda" value="0,00">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Observações</label>
+                            <textarea class="form-control" id="observacoes_venda" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border rounded-3 p-3 mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal</span>
+                        <strong id="subtotalVenda">R$ 0,00</strong>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Desconto</span>
+                        <strong class="text-danger" id="valorDescontoVenda">R$ 0,00</strong>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Acréscimo</span>
+                        <strong class="text-primary" id="valorAcrescimoVenda">R$ 0,00</strong>
+                    </div>
+
+                    <hr>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5 fw-semibold">Total</span>
+                        <span class="fs-4 fw-bold text-success" id="totalVenda">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success btn-lg" id="btnFinalizarVenda">
+                        <i class="bi bi-check-circle me-1"></i> Finalizar Venda
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pdv.css') }}">
+<script src="{{ url_for('static', filename='js/pdv.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        aplicarDataHoje('data_venda');
+        aplicarSelect2('cliente_venda');
+    });
+</script>
+
+
+<script>
+    function aplicarSelect2(id) {
+    const elemento = $('#' + id);
+
+    if (!elemento.length) return;
+
+    if (elemento.hasClass("select2-hidden-accessible")) {
+        elemento.select2('destroy');
+    }
+
+    const modalPai = elemento.closest('.modal');
+
+    let config = {
+        width: '100%',
+        theme: 'bootstrap-5',
+        placeholder: 'Selecione uma opção',
+        allowClear: true
+    };
+
+    if (modalPai.length) {
+        config.dropdownParent = modalPai;
+    }
+
+    elemento.select2(config);
+}
+</script>
+{% endblock %}

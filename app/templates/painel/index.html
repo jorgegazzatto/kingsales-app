@@ -1,0 +1,291 @@
+{% extends "painel/base.html" %}
+
+{% block title %}Dashboard - {{ config_sistema.nome_sistema }}{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+
+    <!-- LINHA 1 -->
+    <div class="dashboard-card card-green">
+        <div class="dashboard-icon"><i class="bi bi-cash-coin"></i></div>
+        <div class="dashboard-info">
+            <small>Recebido</small>
+            <h5>R$ {{ "{:,.2f}".format(total_recebido or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-blue">
+        <div class="dashboard-icon"><i class="bi bi-wallet2"></i></div>
+        <div class="dashboard-info">
+            <small>A Receber</small>
+            <h5>R$ {{ "{:,.2f}".format(total_a_receber or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-red">
+        <div class="dashboard-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="dashboard-info">
+            <small>Atrasadas</small>
+            <h5>R$ {{ "{:,.2f}".format(total_atrasadas or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-yellow">
+        <div class="dashboard-icon"><i class="bi bi-hourglass-split"></i></div>
+        <div class="dashboard-info">
+            <small>Em Aberto</small>
+            <h5>R$ {{ "{:,.2f}".format(total_em_aberto or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-dark">
+        <div class="dashboard-icon"><i class="bi bi-graph-up-arrow"></i></div>
+        <div class="dashboard-info">
+            <small>Faturamento Mês</small>
+            <h5>R$ {{ "{:,.2f}".format(faturamento_mes or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h5>
+        </div>
+    </div>
+
+    <!-- LINHA 2 -->
+    <div class="dashboard-card card-purple">
+        <div class="dashboard-icon"><i class="bi bi-people"></i></div>
+        <div class="dashboard-info">
+            <small>Clientes</small>
+            <h5>{{ total_clientes or 0 }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-blue">
+        <div class="dashboard-icon"><i class="bi bi-receipt"></i></div>
+        <div class="dashboard-info">
+            <small>Vendas</small>
+            <h5>{{ total_vendas or 0 }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-red">
+        <div class="dashboard-icon"><i class="bi bi-box-seam"></i></div>
+        <div class="dashboard-info">
+            <small>Estoque Baixo</small>
+            <h5>{{ total_estoque_baixo or 0 }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-red">
+        <div class="dashboard-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="dashboard-info">
+            <small>Despesas Mês</small>
+            <h5>R$ {{ "{:,.2f}".format(total_despesas_mes or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h5>
+        </div>
+    </div>
+
+    <div class="dashboard-card card-green">
+        <div class="dashboard-icon"><i class="bi bi-piggy-bank"></i></div>
+        <div class="dashboard-info">
+            <small>Lucro Mês</small>
+            <h5>R$ {{ "{:,.2f}".format(lucro_mes or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h5>
+        </div>
+    </div>
+
+</div>
+
+
+
+<div class="content-card mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="mb-0">Balanço dos Últimos 6 Meses</h5>
+            <small class="text-muted">Recebimentos, despesas e saldo mensal</small>
+        </div>
+    </div>
+
+    <canvas id="graficoBalancoMensal" height="90"></canvas>
+</div>
+
+
+
+<div class="row g-3 mt-3">
+
+    <!-- DOUGHNUT -->
+    <div class="col-md-4">
+        <div class="content-card">
+            <h6 class="mb-3">Situação dos Recebimentos</h6>
+            <canvas id="graficoStatus"></canvas>
+        </div>
+    </div>
+
+    <!-- LINHA -->
+    <div class="col-md-8">
+        <div class="content-card">
+            <h6 class="mb-3">Evolução das Vendas</h6>
+            <canvas id="graficoVendas"></canvas>
+        </div>
+    </div>
+
+</div>
+
+
+
+<div id="dados-grafico-balanco"
+     data-labels='{{ meses_labels|tojson }}'
+     data-recebimentos='{{ grafico_recebimentos|tojson }}'
+     data-despesas='{{ grafico_despesas|tojson }}'
+     data-saldo='{{ grafico_saldo|tojson }}'>
+</div>
+
+
+<div id="dados-graficos"
+     data-pago="{{ total_pago|default(0)|float }}"
+     data-pendente="{{ total_pendente|default(0)|float }}"
+     data-atrasado="{{ total_atrasado|default(0)|float }}"
+     data-vendas='{{ grafico_vendas|tojson }}'
+     data-labels='{{ meses_labels|tojson }}'>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const dadosBalanco = document.getElementById('dados-grafico-balanco');
+
+const labelsBalanco = JSON.parse(dadosBalanco.dataset.labels || '[]');
+const dadosRecebimentos = JSON.parse(dadosBalanco.dataset.recebimentos || '[]');
+const dadosDespesas = JSON.parse(dadosBalanco.dataset.despesas || '[]');
+const dadosSaldo = JSON.parse(dadosBalanco.dataset.saldo || '[]');
+
+new Chart(document.getElementById('graficoBalancoMensal'), {
+    type: 'bar',
+    data: {
+        labels: labelsBalanco,
+        datasets: [
+            {
+                label: 'Recebimentos',
+                data: dadosRecebimentos,
+                backgroundColor: '#198754',
+                borderRadius: 8
+            },
+            {
+                label: 'Despesas',
+                data: dadosDespesas,
+                backgroundColor: '#dc3545',
+                borderRadius: 8
+            },
+            {
+                label: 'Saldo',
+                data: dadosSaldo,
+                backgroundColor: '#0d6efd',
+                borderRadius: 8
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let valor = context.raw || 0;
+                        return context.dataset.label + ': R$ ' + valor.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                ticks: {
+                    callback: function(value) {
+                        return 'R$ ' + value.toLocaleString('pt-BR');
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+
+
+
+<script>
+const dados = document.getElementById('dados-graficos');
+
+const totalPago = parseFloat(dados.dataset.pago || 0);
+const totalPendente = parseFloat(dados.dataset.pendente || 0);
+const totalAtrasado = parseFloat(dados.dataset.atrasado || 0);
+
+const vendas = JSON.parse(dados.dataset.vendas || '[]');
+const labels = JSON.parse(dados.dataset.labels || '[]');
+
+
+// =====================
+// DOUGHNUT
+// =====================
+new Chart(document.getElementById('graficoStatus'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Pago', 'Pendente', 'Atrasado'],
+        datasets: [{
+            data: [totalPago, totalPendente, totalAtrasado],
+            backgroundColor: ['#198754', '#f59f00', '#dc3545']
+        }]
+    },
+    options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+
+// =====================
+// LINHA
+// =====================
+new Chart(document.getElementById('graficoVendas'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Vendas',
+            data: vendas,
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13,110,253,0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                ticks: {
+                    callback: function(value) {
+                        return 'R$ ' + value.toLocaleString('pt-BR');
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+{% endblock %}

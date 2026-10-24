@@ -1,0 +1,1026 @@
+{% extends "painel/base.html" %}
+
+{% block title %}Produtos - {{ config_sistema.nome_sistema }}{% endblock %}
+{% block page_title %}Produtos{% endblock %}
+
+{% block content %}
+<div class="content-card">
+
+    <!-- TOPO -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h4 class="mb-0">Produtos</h4>
+            <small class="text-muted">Gerencie os produtos do sistema</small>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+            {% if 'excluir' in acoes_usuario %}
+            <button type="button" class="btn btn-outline-danger d-none" id="btnExcluirSelecionados">
+                <i class="bi bi-trash me-1"></i> Excluir Selecionados
+            </button>
+            {% endif %}
+
+            {% if 'inserir' in acoes_usuario %}
+            <button id="btnNovo" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal">
+                <i class="bi bi-plus-circle me-1"></i> Novo Produto
+            </button>
+            {% endif %}
+
+            <button class="btn btn-outline-secondary" type="button" onclick="limparFiltros()">
+                <i class="bi bi-x-circle me-1"></i> Limpar
+            </button>
+
+            <button class="btn btn-primary" id="btnRelatorio" type="button">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Relatório
+            </button>
+
+            <form id="formRelatorioProdutos" method="POST" action="/produtos/relatorio" target="_blank" style="display:none;">
+                <input type="hidden" name="categoria_id" id="rel_categoria_id">
+                <input type="hidden" name="status" id="rel_status">
+                <input type="hidden" name="texto" id="rel_texto">
+                <input type="hidden" name="estoque_baixo" id="rel_estoque_baixo">
+            </form>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label>Categoria</label>
+            <select id="filtro_categoria_id" class="form-select">
+                <option value="">Todas</option>
+                {% for categoria in categorias %}
+                <option value="{{ categoria.id }}">{{ categoria.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Status</label>
+            <select id="filtro_status" class="form-select">
+                <option value="">Todos</option>
+                <option value="Sim">Ativo</option>
+                <option value="Não">Inativo</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label>Estoque</label>
+            <select id="filtro_estoque_baixo" class="form-select">
+                <option value="">Todos</option>
+                <option value="Sim">Estoque Baixo</option>
+                <option value="Não">Estoque Normal</option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label>Pesquisar</label>
+            <input type="text" id="filtro_texto" class="form-control" placeholder="Nome do produto">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle table-hover" id="tabela">
+            <thead>
+                <tr>
+                    <th style="width: 20px;" class="text-center">
+                        <input type="checkbox" id="checkTodos">
+                    </th>
+                    <th style="width: 70px;">Foto</th>
+                    <th>Nome</th>
+                    <th>Categoria</th>
+                    <th>Valor Compra</th>
+                    <th>Valor Venda</th>
+                    <th>Estoque</th>
+                    <th>Estoque Mínimo</th>
+                    <th>Status</th>
+                    <th style="width: 170px;" class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+</div>
+
+
+<div class="modal fade" id="modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="modalLabel">
+                    <i class="bi bi-box-seam me-2"></i><span id="tituloModal"> Cadastro de Produto</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="form" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="id" id="id">
+
+                <div class="modal-body">
+
+                    <div class="text-center mb-4">
+                        <div class="perfil-foto-area clicado_input_file">
+                            <img src="{{ url_for('static', filename='img/sem_foto.webp') }}" id="previewFoto" class="foto-perfil-preview" alt="Foto do produto">
+                            <small class="texto-foto-perfil">Clique na imagem para alterar</small>
+                        </div>
+                        <input type="file" class="form-control d-none" id="fotoProduto" name="foto" accept="image/*">
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Dados do Produto</h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nome" name="nome" required>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Categoria</label>
+                                <select class="form-select" id="categoria_id" name="categoria_id">
+                                    <option value="">Selecione uma categoria</option>
+                                    {% for categoria in categorias %}
+                                    <option value="{{ categoria.id }}">{{ categoria.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Controlar Estoque</label>
+                                <select class="form-select" id="controlar_estoque" name="controlar_estoque">
+                                    <option value="Sim">Sim</option>
+                                    <option value="Não">Não</option>
+                                </select>
+                            </div>
+
+                            
+
+                            <div class="col-md-2">
+                                <label class="form-label">Valor de Compra</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="valor_compra" name="valor_compra" value="0,00">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label">Valor de Venda</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="valor_venda" name="valor_venda" value="0,00">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label">Estoque Atual</label>
+                                <input type="text" class="form-control" id="estoque" name="estoque" value="0,00">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Nível Mínimo Estoque</label>
+                                <input type="text" class="form-control" id="nivel_minimo_estoque" name="nivel_minimo_estoque" value="0,00">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Lucro Estimado</label>
+                                <input oninput="aplicarMascaraValorBR(this)" type="text" class="form-control" id="lucro_estimado" readonly>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label">Descrição</label>
+                                <textarea class="form-control" id="descricao" name="descricao" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSalvar">Salvar Alterações</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasVisualizar">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title">
+            <i class="bi bi-eye me-2"></i>Detalhes do Produto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+
+    <div class="offcanvas-body">
+        <div class="text-center mb-4">
+            <img src="{{ url_for('static', filename='img/sem_foto.webp') }}" id="viewFoto" class="foto-perfil-preview" alt="Foto do produto">
+        </div>
+
+        <div class="mb-3">
+            <h6>Dados do Produto</h6>
+            <div class="mb-2"><strong>Nome:</strong> <span id="viewNome"></span></div>
+            <div class="mb-2"><strong>Categoria:</strong> <span id="viewCategoria"></span></div>
+            <div class="mb-2"><strong>Valor Compra:</strong> <span id="viewValorCompra"></span></div>
+            <div class="mb-2"><strong>Valor Venda:</strong> <span id="viewValorVenda"></span></div>
+            <div class="mb-2"><strong>Estoque:</strong> <span id="viewEstoque"></span></div>
+            <div class="mb-2"><strong>Estoque Mínimo:</strong> <span id="viewNivelMinimoEstoque"></span></div>
+            <div class="mb-2"><strong>Descrição:</strong> <span id="viewDescricao"></span></div>
+            <div class="mb-2"><strong>Status:</strong> <span id="viewAtivo"></span></div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="modal fade" id="modalMovimentacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header modal-header-custom">
+                <h5 class="modal-title" id="tituloModalMovimentacao">
+                    <i class="bi bi-box-seam me-2"></i>Movimentação de Estoque
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="formMovimentacao">
+                <input type="hidden" name="produto_id" id="mov_produto_id">
+                <input type="hidden" name="tipo" id="mov_tipo">
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Produto</label>
+                        <input type="text" class="form-control" id="mov_produto_nome" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Movimentação</label>
+                        <input type="text" class="form-control" id="mov_tipo_label" readonly>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Quantidade</label>
+                            <input type="text" class="form-control" id="mov_quantidade" name="quantidade" value="0,00" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Estoque Atual</label>
+                            <input type="text" class="form-control" id="mov_estoque_atual" readonly>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label">Observação</label>
+                            <textarea class="form-control" id="mov_observacao" name="observacao" rows="3" placeholder="Descreva a movimentação" required></textarea>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSalvarMovimentacao">Salvar Movimentação</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+{% endblock %}
+
+
+
+
+
+{% block scripts %}
+<script id="acoes-usuario-json" type="application/json">
+    {{ acoes_usuario | tojson | safe }}
+</script>
+
+<script>
+let referencia = 'produtos';
+
+const acoesUsuario = JSON.parse(
+    document.getElementById('acoes-usuario-json').textContent
+);
+</script>
+
+<script>
+async function listar() {
+    const tbody = document.getElementById("tbody");
+    if (!tbody) return;
+
+    if ($.fn.DataTable.isDataTable('#tabela')) {
+        $('#tabela').DataTable().destroy();
+    }
+
+    try {
+        const categoria_id = document.getElementById('filtro_categoria_id')?.value || '';
+        const status = document.getElementById('filtro_status')?.value || '';
+        const texto = document.getElementById('filtro_texto')?.value || '';
+        const estoque_baixo = document.getElementById('filtro_estoque_baixo')?.value || '';
+
+        const params = new URLSearchParams({
+            categoria_id: categoria_id,
+            status: status,
+            texto: texto,
+            estoque_baixo: estoque_baixo
+        });
+
+        const response = await fetch("/" + referencia + "/listar?" + params.toString());
+        const lista = await response.json();
+
+        let html = "";
+
+
+        
+
+        lista.forEach(item => {
+            const podeEditar = acoesUsuario.includes('editar');
+            const podeExcluir = acoesUsuario.includes('excluir');
+            const classeLinha = item.ativo === "Sim" ? "" : "linha-inativa";
+            const foto = item.foto ? `/static/img/${referencia}/${item.foto}` : `/static/img/sem_foto.webp`;
+
+            const statusBadge = item.ativo === "Sim"
+                ? `<span class="badge bg-success">Ativo</span>`
+                : `<span class="badge bg-secondary">Inativo</span>`;
+
+
+            const estoque = Number(item.estoque || 0);
+            const minimo = Number(item.nivel_minimo_estoque || 0);
+
+            let estoqueHtml = '-';
+
+            if (item.controlar_estoque === 'Sim') {
+                if (estoque <= minimo) {
+                    estoqueHtml = `<span class="text-danger fw-bold">${formatarNumeroIntOuDecimal(estoque)}</span>`;
+                } else {
+                    estoqueHtml = formatarNumeroIntOuDecimal(estoque);
+                }
+            }
+
+            html += `
+                <tr class="${classeLinha}">
+                    <td class="text-center">
+                        <input type="checkbox" class="check-item" value="${item.id}">
+                    </td>
+                    <td>
+                        <img src="${foto}" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #ddd;">
+                    </td>
+                    <td>${item.nome || ''}</td>
+                    <td>${item.categoria_nome || ''}</td>
+                    <td>R$ ${formatarValorBR(Number(item.valor_compra || 0))}</td>
+                    <td>R$ ${formatarValorBR(Number(item.valor_venda || 0))}</td>
+                    <td>${estoqueHtml}</td>
+                    <td>${item.controlar_estoque === 'Sim' ? formatarNumeroIntOuDecimal(item.nivel_minimo_estoque || 0) : '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="acoes-tabela">
+                            <button type="button" class="btn btn-sm btn-info" onclick='visualizarRegistro(${JSON.stringify(item)})' title="Visualizar">
+                                <i class="bi bi-eye"></i>
+                            </button>
+
+                            ${podeEditar ? `
+                            <button type="button" class="btn btn-sm btn-success" onclick='abrirEntrada(${JSON.stringify(item.id)}, ${JSON.stringify(item.nome || "")}, ${JSON.stringify(item.estoque || 0)})' title="Entrada">
+                                <i class="bi bi-box-arrow-in-down"></i>
+                            </button>` : ''}
+
+                            ${podeEditar ? `
+                            <button type="button" class="btn btn-sm btn-secondary" onclick='abrirSaida(${JSON.stringify(item.id)}, ${JSON.stringify(item.nome || "")}, ${JSON.stringify(item.estoque || 0)})' title="Saída">
+                                <i class="bi bi-box-arrow-up"></i>
+                            </button>` : ''}
+
+                            ${podeEditar ? `
+                            <button type="button" class="btn btn-sm btn-primary" onclick='editarRegistro(${JSON.stringify(item)})' title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>` : ''}
+
+                            ${podeEditar ? `
+                            <button type="button" class="btn btn-sm btn-warning"
+                                onclick="alternarStatus('${item.id}', '${(item.nome || '').replace(/'/g, "\\'")}', '${item.ativo || 'Não'}')"
+                                title="${item.ativo === 'Sim' ? 'Desativar' : 'Ativar'}">
+                                <i class="bi ${item.ativo === 'Sim' ? 'bi-toggle-on' : 'bi-toggle-off'}"></i>
+                            </button>` : ''}
+
+                            ${podeExcluir ? `
+                            <button type="button" class="btn btn-sm btn-danger" onclick='excluirRegistro(${JSON.stringify(item.id)}, ${JSON.stringify(item.nome || "")})' title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+        iniciarDataTable();
+
+    } catch (error) {
+        mensagemErro("Erro ao carregar produtos");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    listar();
+
+    document.getElementById('valor_compra')?.addEventListener('input', calcularLucro);
+    document.getElementById('valor_venda')?.addEventListener('input', calcularLucro);
+});
+
+</script>
+
+
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formCadastro = document.getElementById("form");
+    const btnSalvar = document.getElementById("btnSalvar");
+    const previewFoto = document.getElementById("previewFoto");
+    const inputFoto = document.getElementById("fotoProduto");
+    const areaFoto = document.querySelector(".perfil-foto-area");
+
+    if (areaFoto && inputFoto) {
+        areaFoto.addEventListener("click", function () {
+            inputFoto.click();
+        });
+    }
+
+    if (inputFoto && previewFoto) {
+        inputFoto.addEventListener("change", function () {
+            const arquivo = this.files[0];
+            if (arquivo) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    previewFoto.src = e.target.result;
+                };
+                reader.readAsDataURL(arquivo);
+            }
+        });
+    }
+
+    if (formCadastro) {
+        formCadastro.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(formCadastro);
+
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = 'Salvando...';
+            mostrarLoading("Salvando dados...");
+
+            try {
+                const response = await fetch("/" + referencia + "/salvar", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === "sucesso") {
+                    await mensagemSucesso(data.mensagem);
+
+                    const modalEl = document.getElementById("modal");
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+
+                    limparFormulario();
+                    listar();
+                } else {
+                    mensagemAviso(data.mensagem);
+                }
+
+            } catch (error) {
+                fecharLoading();
+                mensagemErro("Erro ao salvar os dados.");
+            } finally {
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = 'Salvar Alterações';
+            }
+        });
+    }
+});
+</script>
+
+<script>
+function limparFormulario() {
+    document.getElementById('form').reset();
+    document.getElementById('id').value = '';
+
+    const previewFoto = document.getElementById('previewFoto');
+    if (previewFoto) {
+        previewFoto.src = '/static/img/sem_foto.webp';
+    }
+
+    document.getElementById('tituloModal').innerHTML = 'Cadastro de Produto';
+}
+</script>
+
+<script>
+function editarRegistro(dados) {
+    document.getElementById('id').value = dados.id || '';
+    document.getElementById('nome').value = dados.nome || '';
+    document.getElementById('categoria_id').value = dados.categoria_id || '';
+    document.getElementById('estoque').value = dados.estoque || 0;
+    document.getElementById('valor_compra').value = formatarValorBR(dados.valor_compra) || 0;
+    document.getElementById('valor_venda').value = formatarValorBR(dados.valor_venda) || 0;
+    document.getElementById('nivel_minimo_estoque').value = dados.nivel_minimo_estoque || 0;
+    document.getElementById('descricao').value = dados.descricao || '';
+
+    const previewFoto = document.getElementById('previewFoto');
+    if (previewFoto) {
+        previewFoto.src = dados.foto ? `/static/img/${referencia}/${dados.foto}` : '/static/img/sem_foto.webp';
+    }
+
+    document.getElementById('tituloModal').innerHTML = 'Editar Produto';
+
+    const modal = new bootstrap.Modal(document.getElementById('modal'));
+    modal.show();
+}
+</script>
+
+<script>
+function visualizarRegistro(dados) {
+    document.getElementById('viewNome').textContent = dados.nome || '';
+    document.getElementById('viewCategoria').textContent = dados.categoria_nome || '';
+    document.getElementById('viewValorCompra').textContent = formatarValorBR(dados.valor_compra || 0);
+    document.getElementById('viewValorVenda').textContent = formatarValorBR(dados.valor_venda || 0);
+    document.getElementById('viewEstoque').textContent = formatarValorBR(dados.estoque || 0);
+    document.getElementById('viewNivelMinimoEstoque').textContent = formatarValorBR(dados.nivel_minimo_estoque || 0);
+    document.getElementById('viewDescricao').textContent = dados.descricao || '';
+    document.getElementById('viewAtivo').textContent = dados.ativo || '';
+
+    const foto = document.getElementById('viewFoto');
+    if (foto) {
+        foto.src = dados.foto ? `/static/img/${referencia}/${dados.foto}` : '/static/img/sem_foto.webp';
+    }
+
+    const offcanvasEl = document.getElementById('offcanvasVisualizar');
+    const offcanvas = new bootstrap.Offcanvas(offcanvasEl);
+    offcanvas.show();
+}
+</script>
+
+
+
+
+
+<script>
+async function alternarStatus(id, nome, statusAtual) {
+    const novoStatus = statusAtual === 'Sim' ? 'Não' : 'Sim';
+
+    mostrarLoading('Alterando status...');
+
+    try {
+        const response = await fetch('/' + referencia + '/alternar-status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: id, ativo: novoStatus })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            listar();
+        } else {
+            mensagemAviso(data.mensagem || 'Não foi possível atualizar o status.');
+        }
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro('Erro ao alterar o status do registro.');
+    }
+}
+</script>
+
+<script>
+async function excluirRegistro(id, nome) {
+    const confirmacao = await confirmarAcao({
+        titulo: 'Excluir registro?',
+        texto: `Registro: ${nome}`,
+        textoConfirmar: 'Sim, excluir',
+        textoCancelar: 'Cancelar'
+    });
+
+    if (!confirmacao.isConfirmed) return;
+
+    mostrarLoading('Excluindo ...');
+
+    try {
+        const response = await fetch('/' + referencia + '/excluir', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: id })
+        });
+
+        const data = await response.json();
+        fecharLoading();
+
+        if (data.status === 'sucesso') {
+            await mensagemSucesso(data.mensagem);
+            listar();
+        } else {
+            mensagemAviso(data.mensagem || 'Não foi possível excluir o registro.');
+        }
+
+    } catch (error) {
+        fecharLoading();
+        mensagemErro('Erro ao excluir o registro.');
+    }
+}
+</script>
+
+<script>
+function iniciarDataTable() {
+    if ($.fn.DataTable.isDataTable('#tabela')) {
+        $('#tabela').DataTable().destroy();
+    }
+
+    $('#tabela').DataTable({
+        responsive: true,
+        autoWidth: false,
+        ordering: false,
+        pageLength: 10
+    });
+}
+</script>
+
+<script>
+function atualizarBotaoExcluirSelecionados() {
+    const checks = document.querySelectorAll('.check-item:checked');
+    const btn = document.getElementById('btnExcluirSelecionados');
+
+    if (!btn) return;
+
+    if (checks.length > 0) {
+        btn.classList.remove('d-none');
+        btn.innerHTML = `<i class="bi bi-trash me-1"></i> Excluir Selecionados (${checks.length})`;
+    } else {
+        btn.classList.add('d-none');
+        btn.innerHTML = `<i class="bi bi-trash me-1"></i> Excluir Selecionados`;
+    }
+}
+
+document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('check-item')) atualizarBotaoExcluirSelecionados();
+
+    if (e.target.id === 'checkTodos') {
+        const marcado = e.target.checked;
+        document.querySelectorAll('.check-item').forEach(check => check.checked = marcado);
+        atualizarBotaoExcluirSelecionados();
+    }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnExcluirSelecionados = document.getElementById('btnExcluirSelecionados');
+
+    if (btnExcluirSelecionados) {
+        btnExcluirSelecionados.addEventListener('click', async function () {
+            const selecionados = Array.from(document.querySelectorAll('.check-item:checked')).map(item => item.value);
+
+            if (!selecionados.length) {
+                mensagemAviso('Selecione pelo menos um registro.');
+                return;
+            }
+
+            const confirmacao = await confirmarAcao({
+                titulo: 'Excluir registros selecionados?',
+                texto: `Quantidade selecionada: ${selecionados.length}`,
+                textoConfirmar: 'Sim, excluir',
+                textoCancelar: 'Cancelar'
+            });
+
+            if (!confirmacao.isConfirmed) return;
+
+            mostrarLoading('Excluindo registros selecionados...');
+
+            try {
+                const response = await fetch('/' + referencia + '/excluir-lote', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ids: selecionados })
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === 'sucesso') {
+                    await mensagemSucesso(data.mensagem);
+                    listar();
+                    const checkTodos = document.getElementById('checkTodos');
+                    if (checkTodos) checkTodos.checked = false;
+                    atualizarBotaoExcluirSelecionados();
+                    document.getElementById('btnExcluirSelecionados')?.classList.add('d-none');
+                } else {
+                    mensagemAviso(data.mensagem || 'Não foi possível excluir os registros.');
+                }
+
+            } catch (error) {
+                fecharLoading();
+                mensagemErro('Erro ao excluir os registros selecionados.');
+            }
+        });
+    }
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const btnNovo = document.getElementById("btnNovo");
+    const modalEl = document.getElementById("modal");
+
+    if (btnNovo) {
+        btnNovo.addEventListener("click", function () {
+            limparFormulario();
+        });
+    }
+
+    if (modalEl) {
+        modalEl.addEventListener("hidden.bs.modal", function () {
+            limparFormulario();
+        });
+    }
+});
+</script>
+
+<script>
+function textoOuPadrao(valor, padrao = 'Não informado') {
+    return valor && String(valor).trim() !== '' ? valor : padrao;
+}
+
+
+</script>
+
+<script>
+function formatarDataBrasil(data) {
+    if (!data) return '';
+
+    if (typeof data !== 'string') {
+        data = String(data);
+    }
+
+    data = data.trim();
+
+    if (!data) return '';
+
+    // já está em dd/mm/aaaa
+    if (data.includes('/')) {
+        return data;
+    }
+
+    // formato yyyy-mm-dd
+    if (/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+        const partes = data.split('-');
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    // formato com hora: yyyy-mm-dd hh:mm:ss
+    if (/^\d{4}-\d{2}-\d{2}/.test(data)) {
+        const parteData = data.substring(0, 10);
+        const partes = parteData.split('-');
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    // formato tipo: Thu, 25 May 2000 00:00:00 GMT
+    const dt = new Date(data);
+
+    if (!isNaN(dt.getTime())) {
+        const dia = String(dt.getUTCDate()).padStart(2, '0');
+        const mes = String(dt.getUTCMonth() + 1).padStart(2, '0');
+        const ano = dt.getUTCFullYear();
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    return data;
+}
+</script>
+
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+    listar();
+
+    document.getElementById('filtro_categoria_id')?.addEventListener('change', listar);
+    document.getElementById('filtro_status')?.addEventListener('change', listar);
+    document.getElementById('filtro_estoque_baixo')?.addEventListener('change', listar);
+
+    document.getElementById('filtro_texto')?.addEventListener('input', function () {
+        listar();
+    });
+});
+</script>
+
+
+<script>
+    function limparFiltros() {
+    const filtroCategoria = document.getElementById('filtro_categoria_id');
+    const filtroStatus = document.getElementById('filtro_status');
+    const filtroTexto = document.getElementById('filtro_texto');
+
+    const filtroEstoqueBaixo = document.getElementById('filtro_estoque_baixo');
+    if (filtroEstoqueBaixo) filtroEstoqueBaixo.value = '';
+
+    if (filtroCategoria) filtroCategoria.value = '';
+    if (filtroStatus) filtroStatus.value = '';
+    if (filtroTexto) filtroTexto.value = '';
+
+    listar();
+}
+
+
+function calcularLucro() {
+    const compra = valorParaNumero(document.getElementById('valor_compra')?.value);
+    const venda = valorParaNumero(document.getElementById('valor_venda')?.value);
+
+    const lucro = venda - compra;
+
+    const campo = document.getElementById('lucro_estimado');
+    if (campo) {
+        campo.value = formatarValorBR(lucro > 0 ? lucro : 0);
+    }
+}
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnRelatorio = document.getElementById('btnRelatorio');
+
+    if (btnRelatorio) {
+        btnRelatorio.addEventListener('click', function () {
+
+            document.getElementById('rel_categoria_id').value =
+                document.getElementById('filtro_categoria_id')?.value || '';
+
+            document.getElementById('rel_status').value =
+                document.getElementById('filtro_status')?.value || '';
+
+            document.getElementById('rel_texto').value =
+                document.getElementById('filtro_texto')?.value || '';
+
+            document.getElementById('rel_estoque_baixo').value =
+                document.getElementById('filtro_estoque_baixo')?.value || '';    
+
+            document.getElementById('formRelatorioProdutos').submit();
+        });
+    }
+});
+</script>
+
+
+<script>
+function limparMovimentacao() {
+    document.getElementById('formMovimentacao')?.reset();
+
+    document.getElementById('mov_produto_id').value = '';
+    document.getElementById('mov_tipo').value = '';
+    document.getElementById('mov_produto_nome').value = '';
+    document.getElementById('mov_tipo_label').value = '';
+    document.getElementById('mov_quantidade').value = '0,00';
+    document.getElementById('mov_estoque_atual').value = '';
+    document.getElementById('mov_observacao').value = '';
+}
+</script>
+
+<script>
+
+    function abrirEntrada(id, nome, estoque = 0) {
+    limparMovimentacao();
+
+    document.getElementById('mov_produto_id').value = id || '';
+    document.getElementById('mov_tipo').value = 'Entrada';
+    document.getElementById('mov_produto_nome').value = nome || '';
+    document.getElementById('mov_tipo_label').value = 'Entrada de Estoque';
+    document.getElementById('mov_estoque_atual').value = formatarValorBR(Number(estoque || 0));
+
+    document.getElementById('tituloModalMovimentacao').innerHTML =
+        '<i class="bi bi-box-arrow-in-down me-2"></i>Entrada de Estoque';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalMovimentacao'));
+    modal.show();
+}
+
+function abrirSaida(id, nome, estoque = 0) {
+    limparMovimentacao();
+
+    document.getElementById('mov_produto_id').value = id || '';
+    document.getElementById('mov_tipo').value = 'Saida';
+    document.getElementById('mov_produto_nome').value = nome || '';
+    document.getElementById('mov_tipo_label').value = 'Saída de Estoque';
+    document.getElementById('mov_estoque_atual').value = formatarValorBR(Number(estoque || 0));
+
+    document.getElementById('tituloModalMovimentacao').innerHTML =
+        '<i class="bi bi-box-arrow-up me-2"></i>Saída de Estoque';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalMovimentacao'));
+    modal.show();
+}
+
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById('mov_quantidade')?.addEventListener('input', function () {
+        this.value = mascaraValorBR(this.value);
+    });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formMovimentacao = document.getElementById('formMovimentacao');
+    const btnSalvarMovimentacao = document.getElementById('btnSalvarMovimentacao');
+
+    if (formMovimentacao) {
+        formMovimentacao.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            btnSalvarMovimentacao.disabled = true;
+            btnSalvarMovimentacao.innerHTML = 'Salvando...';
+
+            mostrarLoading('Salvando movimentação...');
+
+            try {
+                fecharLoading();
+                mensagemInfo('A parte visual da movimentação está pronta. Agora falta criar a rota e as tabelas.');
+            } catch (error) {
+                fecharLoading();
+                mensagemErro('Erro ao processar a movimentação.');
+            } finally {
+                btnSalvarMovimentacao.disabled = false;
+                btnSalvarMovimentacao.innerHTML = 'Salvar Movimentação';
+            }
+        });
+    }
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const formMovimentacao = document.getElementById('formMovimentacao');
+    const btnSalvarMovimentacao = document.getElementById('btnSalvarMovimentacao');
+
+    if (formMovimentacao) {
+        formMovimentacao.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(formMovimentacao);
+
+            btnSalvarMovimentacao.disabled = true;
+            btnSalvarMovimentacao.innerHTML = 'Salvando...';
+            mostrarLoading('Salvando movimentação...');
+
+            try {
+                const response = await fetch('/produtos/salvar-movimentacao', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                fecharLoading();
+
+                if (data.status === 'sucesso') {
+                    await mensagemSucesso(data.mensagem || 'Movimentação salva com sucesso.');
+
+                    const modalEl = document.getElementById('modalMovimentacao');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+
+                    limparMovimentacao();
+                    listar();
+                } else {
+                    mensagemAviso(data.mensagem || 'Não foi possível salvar a movimentação.');
+                }
+
+            } catch (error) {
+                fecharLoading();
+                mensagemErro('Erro ao salvar movimentação.');
+            } finally {
+                btnSalvarMovimentacao.disabled = false;
+                btnSalvarMovimentacao.innerHTML = 'Salvar Movimentação';
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}
+
+
+

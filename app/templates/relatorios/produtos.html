@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Produtos</title>
+
+    <style type="text/css">
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+
+            /*
+            @frame footer_page_number {
+                -pdf-frame-content: footer_page_number;
+                bottom: 1mm;
+                right: 10mm;
+                width: 60mm;
+                height: 8mm;
+            }
+            */
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: #1f2937;
+            margin: 0;
+            padding: 0;
+        }
+
+        .pagina {
+            width: 100%;
+        }
+
+        .topo-box {
+            width: 100%;
+            border: 1px solid #d8dee6;
+            border-radius: 6px;
+            padding: 10px 10px 8px 10px;
+            margin-top: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .topo-tabela {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .topo-tabela td {
+            vertical-align: top;
+            padding: 0px;
+        }
+
+        .col-logo {
+            width: 18%;
+            text-align: center;
+        }
+
+        .col-empresa {
+            width: 53%;
+            padding: 12px 14px 8px 16px;
+            border-left: 1px solid #d8dee6;
+            vertical-align: top;
+        }
+
+        .col-titulo {
+            width: 29%;
+            text-align: right;
+            padding: 12px 14px 8px 16px;
+            border-left: 1px solid #d8dee6;
+            vertical-align: top;
+        }
+
+        .logo {
+            max-width: 130px;
+            max-height: 130px;
+        }
+
+        .empresa-nome {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #111827;
+            margin: 0 0 2px 0;
+            line-height: 1.1;
+        }
+
+        .relatorio-titulo {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #111827;
+            margin: 0 0 2px 0;
+            line-height: 1.1;
+        }
+
+        .empresa-info {
+            font-size: 11px;
+            color: #374151;
+            line-height: 1.25;
+            margin: 0;
+        }
+
+        .relatorio-data {
+            font-size: 10px;
+            line-height: 1.2;
+            margin: 0;
+        }
+
+        .filtros,
+        .cards-resumo,
+        .tabela,
+        .tabela-resumo {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .filtros td {
+            border: 1px solid #d8dee6;
+            background: #f8fafc;
+            padding: 7px 8px;
+            font-size: 11px;
+        }
+
+        .filtros b {
+            color: #111827;
+        }
+
+        .cards-resumo {
+            margin-top: 8px;
+        }
+
+        .cards-resumo td {
+            border: 1px solid #d8dee6;
+            background: #f8fafc;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
+
+        .card-titulo {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 3px;
+        }
+
+        .card-valor {
+            font-size: 15px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .bloco-secao {
+            margin-top: 10px;
+        }
+
+        .secao-titulo {
+            font-size: 12px;
+            font-weight: bold;
+            color: #111827;
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+        }
+
+        .tabela thead th,
+        .tabela-resumo thead th {
+            background: #e8edf4;
+            color: #111827;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: left;
+            padding: 6px 7px;
+            border: 1px solid #d8dee6;
+            line-height: 1.15;
+        }
+
+        .tabela tbody td,
+        .tabela-resumo tbody td {
+            padding: 6px 7px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+            line-height: 1.2;
+            word-wrap: break-word;
+        }
+
+        .tabela tbody tr:nth-child(even),
+        .tabela-resumo tbody tr:nth-child(even) {
+            background: #fbfcfe;
+        }
+
+        .nowrap {
+            white-space: nowrap;
+        }
+
+        .muted {
+            color: #6b7280;
+        }
+
+        .small {
+            font-size: 9px;
+        }
+
+        .badge {
+            background-clip: padding-box;
+            padding-top: 4px;
+            padding-bottom: 4px;
+            padding-left: 10px;
+            padding-right: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+            vertical-align: center;
+            text-align: center;
+            line-height: 10px;
+            white-space: nowrap;
+        }
+
+        .b-ativo    { background: #16a34a; }
+        .b-inativo  { background: #6b7280; }
+        .b-baixo    { background: #dc2626; }
+        .b-normal   { background: #0891b2; }
+        .b-padrao   { background: #6b7280; }
+
+        .sem-dados {
+            text-align: center;
+            color: #6b7280;
+            padding: 14px;
+        }
+
+        .rodape-final {
+            margin-top: 14px;
+            border-top: 1px solid #d8dee6;
+            padding-top: 6px;
+            font-size: 10px;
+            color: #6b7280;
+            text-align: right;
+        }
+
+        .assinatura-img {
+            max-width: 180px;
+            max-height: 70px;
+        }
+
+        .assinatura-nome {
+            font-size: 11px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .box-logo {
+            padding: 10px 12px 8px 12px;
+            text-align: center;
+        }
+
+        .box-empresa {
+            padding: 0 14px 6px 14px;
+        }
+
+        .box-titulo {
+            padding: 0 16px 6px 16px;
+            text-align: right;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        
+    </style>
+
+    {% if modo_relatorio == 'html' %} 
+            <style> 
+                body {
+            padding: 20px 60px;
+            background: #f1f5f9;
+                }
+            </style>  
+            {% endif %}
+</head>
+<body>
+    <div class="pagina">
+
+        <div class="topo-box">
+            <table class="topo-tabela">
+                <tr>
+                    <td class="col-logo">
+                        <div class="box-logo" style="padding-top:20px">
+                            {% if logo_src %}
+                                <img src="{{ logo_src }}" class="logo" alt="Logo">
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <td class="col-empresa">
+                        <div class="box-empresa">
+                            <div style="height:8px; line-height:8px; font-size:8px;">&nbsp;</div>
+
+                            <div class="empresa-nome">{{ (config_sistema.nome_sistema or 'Sistema')|upper }}</div>
+
+                            <div class="empresa-info">
+                                {{ config_sistema.telefone_sistema or '' }}
+                                {% if config_sistema.telefone_sistema and config_sistema.email_sistema %} | {% endif %}
+                                {{ config_sistema.email_sistema or '' }}
+                            </div>
+
+                            <div class="empresa-info">
+                                {{ config_sistema.endereco_sistema or '' }}
+                            </div>
+                        </div>
+                    </td>
+
+                    <td class="col-titulo">
+                        <div class="box-titulo">
+                            <div style="height:8px; line-height:8px; font-size:8px;">&nbsp;</div>
+
+                            <div class="relatorio-titulo">RELATÓRIO DE PRODUTOS</div>
+                            <div class="relatorio-data">Gerado em {{ now().strftime('%d/%m/%Y %H:%M') }}</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="filtros">
+                <tr>
+                    <td><b>Categoria:</b> {{ categoria_nome_filtro or 'Todas' }}</td>
+                    <td><b>Status:</b> {{ status_filtro or 'Todos' }}</td>
+                    <td><b>Estoque:</b> {{ estoque_baixo_filtro or 'Todos' }}</td>
+                    <td><b>Pesquisa:</b> {{ texto_filtro or 'Todos' }}</td>
+                </tr>
+            </table>
+
+            <table class="cards-resumo">
+                <tr>
+                    <td>
+                        <div class="card-titulo">Qtd. Produtos</div>
+                        <div class="card-valor">{{ dados|length }}</div>
+                    </td>
+                    <td>
+                        <div class="card-titulo">Valor Compra Total</div>
+                        <div class="card-valor">
+                            R$ {{ '{:,.2f}'.format(total_compra or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="card-titulo">Valor Venda Total</div>
+                        <div class="card-valor" style="color:green">
+                            R$ {{ '{:,.2f}'.format(total_venda or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="card-titulo">Lucro Estimado Total</div>
+                        <div class="card-valor" style="color:blue">
+                            R$ {{ '{:,.2f}'.format(total_lucro or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="card-titulo">Produtos com Estoque Baixo</div>
+                        <div class="card-valor" style="color:red">{{ qtd_estoque_baixo or 0 }}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <br>
+        <div class="bloco-secao">
+            <div class="secao-titulo">Produtos Cadastrados</div>
+
+            <table class="tabela">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th style="width: 140px;">Categoria</th>
+                        <th style="width: 95px;">Controla Estoque</th>
+                        <th style="width: 90px;">Estoque</th>
+                        <th style="width: 100px;">Estoque Mínimo</th>
+                        <th style="width: 100px;">Valor Compra</th>
+                        <th style="width: 100px;">Valor Venda</th>
+                        <th style="width: 95px;">Lucro</th>
+                        <th style="width: 85px;">Status</th>
+                        <th style="width: 95px;">Sit. Estoque</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if dados %}
+                        {% for item in dados %}
+                            {% set badge_status = 'b-padrao' %}
+                            {% if item.ativo == 'Sim' %}
+                                {% set badge_status = 'b-ativo' %}
+                            {% elif item.ativo == 'Não' %}
+                                {% set badge_status = 'b-inativo' %}
+                            {% endif %}
+
+                            {% set badge_estoque = 'b-padrao' %}
+                            {% if item.controlar_estoque == 'Não' %}
+                                {% set badge_estoque = 'b-padrao' %}
+                            {% elif (item.estoque or 0) <= (item.nivel_minimo_estoque or 0) %}
+                                {% set badge_estoque = 'b-baixo' %}
+                            {% else %}
+                                {% set badge_estoque = 'b-normal' %}
+                            {% endif %}
+
+                            <tr>
+                                <td>
+                                    <div><b>{{ item.nome or '-' }}</b></div>
+                                    
+                                </td>
+
+                                <td>{{ item.categoria_nome or '-' }}</td>
+
+                                <td class="nowrap">{{ item.controlar_estoque or '-' }}</td>
+
+                                <td class="nowrap">
+                                    {% if item.controlar_estoque == 'Sim' %}
+                                        {{ formatar_numero(item.estoque) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+
+                                <td class="nowrap">
+                                    {% if item.controlar_estoque == 'Sim' %}
+                                        {{ formatar_numero(item.nivel_minimo_estoque) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+
+                                <td class="nowrap">
+                                    R$ {{ '{:,.2f}'.format(item.valor_compra or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                </td>
+
+                                <td class="nowrap">
+                                    R$ {{ '{:,.2f}'.format(item.valor_venda or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                </td>
+
+                                <td class="nowrap">
+                                    R$ {{ '{:,.2f}'.format((item.valor_venda or 0) - (item.valor_compra or 0)).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                </td>
+
+                                <td>
+                                    <div class="badge {{ badge_status }}">
+                                        {{ 'Ativo' if item.ativo == 'Sim' else 'Inativo' }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="badge {{ badge_estoque }}">
+                                        {% if item.controlar_estoque == 'Não' %}
+                                            Sem Controle
+                                        {% elif (item.estoque or 0) <= (item.nivel_minimo_estoque or 0) %}
+                                            Estoque Baixo
+                                        {% else %}
+                                            Normal
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="10" class="sem-dados">Nenhum produto encontrado com os filtros selecionados.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+         <br>
+        <div class="bloco-secao">
+            <div class="secao-titulo">Resumo por Categoria</div>
+
+            <table class="tabela-resumo">
+                <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th style="width: 90px;">Qtd.</th>
+                        <th style="width: 120px;">Compra</th>
+                        <th style="width: 120px;">Venda</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if resumo_categorias %}
+                        {% for item in resumo_categorias %}
+                            <tr>
+                                <td>{{ item.nome or 'Sem categoria' }}</td>
+                                <td class="nowrap">{{ item.quantidade or 0 }}</td>
+                                <td class="nowrap">
+                                    R$ {{ '{:,.2f}'.format(item.total_compra or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                </td>
+                                <td class="nowrap">
+                                    R$ {{ '{:,.2f}'.format(item.total_venda or 0).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="sem-dados">Nenhum dado agrupado por categoria.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+         <br>
+        <div class="bloco-secao">
+            <div class="secao-titulo">Resumo por Status</div>
+
+            <table class="tabela-resumo">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th style="width: 90px;">Qtd.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if resumo_status %}
+                        {% for item in resumo_status %}
+                            <tr>
+                                <td>{{ item.status or 'Não informado' }}</td>
+                                <td class="nowrap">{{ item.quantidade or 0 }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="2" class="sem-dados">Nenhum dado agrupado por status.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top:80px;">
+            {% if assinatura_src %}
+            <tr>
+                <td align="center" style="padding-bottom:6px;">
+                    <img src="{{ assinatura_src }}" class="assinatura-img" alt="Assinatura" width="530px">
+                </td>
+            </tr>
+            {% endif %}
+
+            <tr>
+                <td>
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                            <td width="50%"></td>
+                            <td width="440" style="border-top:1px solid #000000; font-size:1px; line-height:1px;">&nbsp;</td>
+                            <td width="50%"></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <tr>
+                <td align="center" style="padding-top:6px;">
+                    <span class="assinatura-nome">{{ assinatura_nome or 'Usuário' }}</span>
+                </td>
+            </tr>
+        </table>
+
+        <div class="rodape-final">
+            Total de registros: {{ dados|length }}
+        </div>
+    </div>
+
+    <div id="footer_page_number" style="text-align:right; font-size:10px; color:#9ca3af;">
+        Página <pdf:pagenumber> / <pdf:pagecount>
+    </div>
+</body>
+</html>
