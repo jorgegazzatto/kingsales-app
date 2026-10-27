@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_bcrypt import Bcrypt
 from app.database.conexao import conectar
@@ -82,6 +83,7 @@ def create_app():
     from app.utils.auth import buscar_menus_permitidos
     from app.utils.menu import MENU_SISTEMA, filtrar_menu_por_permissao
 
+    inicializar_banco()
     criar_admin_padrao()
     criar_config_padrao()
     criar_cargos_padrao()
@@ -273,6 +275,34 @@ def create_app():
     return app
 
 
+
+
+def inicializar_banco():
+    conexao = None
+    cursor = None
+    try:
+        conexao = conectar()
+        cursor = conexao.cursor()
+        cursor.execute("SHOW TABLES LIKE 'usuarios'")
+        if not cursor.fetchone():
+            caminho_sql = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sql_executados.sql')
+            if os.path.exists(caminho_sql):
+                with open(caminho_sql, 'r', encoding='utf-8') as f:
+                    conteudo = f.read()
+                comandos = [cmd.strip() for cmd in conteudo.split(';') if cmd.strip()]
+                for cmd in comandos:
+                    try:
+                        cursor.execute(cmd)
+                    except Exception as err:
+                        print(f"Aviso ao executar comando SQL: {err}")
+                conexao.commit()
+    except Exception as e:
+        print(f"Aviso ao inicializar banco de dados: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conexao:
+            conexao.close()
 
 
 def criar_admin_padrao():
