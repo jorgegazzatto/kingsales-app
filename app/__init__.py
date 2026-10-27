@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_bcrypt import Bcrypt
 from app.database.conexao import conectar
-from config import EMAIL_SISTEMA, NOME_SISTEMA, SENHA_PADRAO, COR_PRIMARIA, COR_SECUNDARIA
+from config import EMAIL_SISTEMA, NOME_SISTEMA, SENHA_PADRAO, COR_PRIMARIA, COR_SECUNDARIA, SECRET_KEY
 from app.utils.config_sistema import get_config_sistema
 from app.utils.menu import MENU_SISTEMA
 
@@ -10,7 +10,7 @@ bcrypt = Bcrypt()
 def create_app():
     app = Flask(__name__)
 
-    app.config['SECRET_KEY'] = 'passar uma chave'
+    app.config['SECRET_KEY'] = SECRET_KEY
 
     bcrypt.init_app(app)
 
