@@ -399,13 +399,31 @@ a {
     max-width: 500px;
 }
 
-.form-control,
-.form-select {
+.form-control {
     height: 34px;
     font-size: 0.82rem;
     padding: 5px 8px;
     border-radius: 6px;
     border: 1px solid #d1d5db;
+}
+
+.form-select {
+    height: 34px;
+    font-size: 0.82rem;
+    padding: 5px 28px 5px 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+}
+
+div.dataTables_wrapper div.dataTables_length select,
+.dataTables_length select.form-select {
+    width: auto !important;
+    min-width: 68px !important;
+    padding: 4px 26px 4px 10px !important;
+    background-position: right 8px center !important;
+    background-size: 14px 10px !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
 }
 
 .form-control:focus,
