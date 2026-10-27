@@ -9,12 +9,17 @@ WORKDIR /app
 # Instala dependências do sistema necessárias para Weasyprint, Pillow e Cairo
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
+    pkg-config \
+    python3-dev \
+    libcairo2-dev \
+    libpango1.0-dev \
     libgdk-pixbuf-2.0-0 \
     libffi-dev \
     shared-mime-info \
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala dependências do Python
