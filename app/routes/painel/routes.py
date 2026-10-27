@@ -51,6 +51,15 @@ def index():
 
 
 
+@painel.route('/painel/popular-dados')
+@login_required
+def popular_dados():
+    from app.database.seeder import popular_dados_distribuidora
+    popular_dados_distribuidora()
+    flash('Dados da Distribuidora de Eletros inseridos com sucesso!', 'success')
+    return redirect(url_for('painel.dashboard'))
+
+
 @painel.route('/painel/dashboard')
 @login_required
 @permissao_menu_required('dashboard')

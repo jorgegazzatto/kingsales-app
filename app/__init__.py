@@ -88,6 +88,8 @@ def create_app():
     criar_config_padrao()
     criar_cargos_padrao()
     criar_frequencias_padrao()
+    from app.database.seeder import popular_dados_distribuidora
+    popular_dados_distribuidora()
 
     @app.context_processor
     def inject_menu_sistema():
