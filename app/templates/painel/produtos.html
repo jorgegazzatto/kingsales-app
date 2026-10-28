@@ -121,7 +121,7 @@
                 <div class="modal-body">
 
                     <div class="text-center mb-4">
-                        <div class="perfil-foto-area clicado_input_file">
+                        <div class="perfil-foto-area" id="areaFotoProduto">
                             <img src="{{ url_for('static', filename='img/sem_foto.webp') }}" id="previewFoto" class="foto-perfil-preview" alt="Foto do produto">
                             <small class="texto-foto-perfil">Clique na imagem para alterar</small>
                         </div>
@@ -445,7 +445,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const btnSalvar = document.getElementById("btnSalvar");
     const previewFoto = document.getElementById("previewFoto");
     const inputFoto = document.getElementById("fotoProduto");
-    const areaFoto = document.querySelector(".perfil-foto-area");
+    const areaFoto = document.getElementById("areaFotoProduto");
 
     if (areaFoto && inputFoto) {
         areaFoto.addEventListener("click", function () {

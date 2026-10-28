@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const btnSalvar = document.getElementById("btnSalvarPerfil");
     const previewFoto = document.getElementById("previewFotoPerfil");
     const inputFoto = document.getElementById("fotoPerfil");
-    const areaFotoPerfil = document.querySelector(".perfil-foto-area");
+    const areaFotoPerfil = document.getElementById("areaFotoPerfil");
 
     const formConfiguracoes = document.getElementById("formConfiguracoes");
     const btnSalvarConfiguracoes = document.getElementById("btnSalvarConfiguracoes");
