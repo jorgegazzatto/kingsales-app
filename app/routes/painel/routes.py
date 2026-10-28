@@ -475,7 +475,7 @@ def salvar_perfil():
         excluir_arquivo(
             nome_arquivo=foto_antiga,
             pasta_destino=pasta_arquivo,
-            arquivos_protegidos=['sem-foto.jpg', 'sem-foto.png', 'sem-foto.webp']
+            arquivos_protegidos=['sem_foto.webp', 'sem-foto.webp', 'sem_foto.png', 'sem-foto.png', 'sem_foto.jpg', 'sem-foto.jpg']
         )
     
     

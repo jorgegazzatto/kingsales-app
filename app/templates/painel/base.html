@@ -216,8 +216,8 @@
                     <div class="dropdown user-dropdown">
                         <button class="btn user-area dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="user-photo">
-                                {% if foto_usuario %}
-                                    <img src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" alt="Foto do usuário">
+                                {% if foto_usuario and foto_usuario != 'None' %}
+                                    <img src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" alt="Foto do usuário" onerror="this.src='/static/img/sem_foto.webp'">
                                 {% else %}
                                     <img src="{{ url_for('static', filename='img/sem_foto.webp') }}" alt="Foto padrão">
                                 {% endif %}
@@ -232,10 +232,10 @@
                         <ul class="dropdown-menu dropdown-menu-end user-menu">
                             <li class="user-menu-header">
                                 <div class="user-photo large">
-                                    {% if foto_usuario %}
-                                        <img src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" alt="Foto do usuário">
+                                    {% if foto_usuario and foto_usuario != 'None' %}
+                                        <img src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" alt="Foto do usuário" onerror="this.src='/static/img/sem_foto.webp'">
                                     {% else %}
-                                        <img src="{{ url_for('static', filename='img/usuarios/sem_foto.webp') }}" alt="Foto padrão">
+                                        <img src="{{ url_for('static', filename='img/sem_foto.webp') }}" alt="Foto padrão">
                                     {% endif %}
                                 </div>
                                 <div>
@@ -338,10 +338,11 @@
                     <div class="text-center mb-4">
                         <div class="mb-2 perfil-foto-area" title="Trocar Foto">
                             <img 
-                                src="{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}" 
+                                src="{% if foto_usuario and foto_usuario != 'None' %}{{ url_for('static', filename='img/usuarios/' ~ foto_usuario) }}{% else %}{{ url_for('static', filename='img/sem_foto.webp') }}{% endif %}" 
                                 id="previewFotoPerfil"
                                 alt="Foto do usuário"
                                 class="foto-perfil-preview"
+                                onerror="this.src='/static/img/sem_foto.webp'"
                             >
                         </div>
 

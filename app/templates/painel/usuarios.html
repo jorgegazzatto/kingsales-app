@@ -435,7 +435,7 @@ async function listar() {
             const podeEditar = acoesUsuario.includes('editar');
             const podeExcluir = acoesUsuario.includes('excluir');
             const classeLinha = item.ativo === "Sim" ? "" : "linha-inativa";
-            const foto = item.foto
+            const foto = (item.foto && item.foto !== 'sem_foto.webp' && item.foto !== 'sem-foto.webp')
                 ? `/static/img/${referencia}/${item.foto}`
                 : `/static/img/sem_foto.webp`;
 
@@ -460,6 +460,7 @@ async function listar() {
                             src="${foto}" 
                             alt="Foto"
                             style="width:40px; height:40px; object-fit:cover; border-radius:50%; border:1px solid #ddd;"
+                            onerror="this.src='/static/img/sem_foto.webp'"
                         >
                     </td>
                     <td>${nome} <span class="d-none">${cpf}</span></td>
@@ -663,7 +664,7 @@ async function editarRegistro(dados) {
 
     const previewFoto = document.getElementById('previewFoto');
     if (previewFoto) {
-        previewFoto.src = dados.foto
+        previewFoto.src = (dados.foto && dados.foto !== 'sem_foto.webp' && dados.foto !== 'sem-foto.webp')
             ? `/static/img/${referencia}/${dados.foto}`
             : '/static/img/sem_foto.webp';
     }
@@ -998,7 +999,7 @@ function visualizarRegistro(dados) {
 
     const foto = document.getElementById('viewFoto');
     if (foto) {
-        foto.src = dados.foto
+        foto.src = (dados.foto && dados.foto !== 'sem_foto.webp' && dados.foto !== 'sem-foto.webp')
             ? `/static/img/${referencia}/${dados.foto}`
             : '/static/img/sem_foto.webp';
     }

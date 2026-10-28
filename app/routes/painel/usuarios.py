@@ -218,7 +218,7 @@ def salvar():
                 excluir_arquivo(
                     nome_arquivo=registro_atual['foto'],
                     pasta_destino=pasta_arquivo,
-                    arquivos_protegidos=['sem-foto.jpg', 'sem-foto.png', 'sem-foto.webp']
+                    arquivos_protegidos=['sem_foto.webp', 'sem-foto.webp', 'sem_foto.png', 'sem-foto.png', 'sem_foto.jpg', 'sem-foto.jpg']
                 )
 
                 nome_arquivo_foto = nova_foto
